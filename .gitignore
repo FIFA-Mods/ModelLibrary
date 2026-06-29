@@ -1,0 +1,10 @@
+.vs
+.obj
+obj
+Release
+Debug
+output
+build
+*.lib
+*.pdb
+*.exe
