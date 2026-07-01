@@ -53,6 +53,7 @@ struct Vertex {
 struct Mesh {
     std::string material;
     std::vector<std::array<uint32_t, 3>> triangles;
+    std::vector<std::array<uint32_t, 4>> quads;
     std::map<std::string, PropertyValue> properties;
 };
 
@@ -106,6 +107,7 @@ struct ModelOptions {
     bool GenerateTangents = false;
     bool FlipWindingOrder = false;
     bool FlipUVs = false;
+    bool AllowQuads = false;
 };
 
 struct Model {
