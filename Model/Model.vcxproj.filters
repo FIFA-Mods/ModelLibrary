@@ -5,11 +5,22 @@
     <ClInclude Include="ModelClass.h" />
     <ClInclude Include="ModelTypes.h" />
     <ClInclude Include="ModelTypeConversion.h" />
-    <ClInclude Include="ModelFbxHeader.h" />
+    <ClInclude Include="ModelFbxSdkHeader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelClass.cpp" />
     <ClCompile Include="ModelTypes.cpp" />
     <ClCompile Include="ModelTypeConversion.cpp" />
+    <ClCompile Include="ReadWrite\ModelFBX.cpp">
+      <Filter>ReadWrite</Filter>
+    </ClCompile>
+    <ClCompile Include="ReadWrite\ModelOBJ.cpp">
+      <Filter>ReadWrite</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="ReadWrite">
+      <UniqueIdentifier>{482457a3-33ff-4fe2-9dbf-3926c7f2084d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

@@ -248,6 +248,17 @@ void RestoreVertIndices(MeshT const &base, std::vector<Vertex> const &baseVerts,
     dest.quads = base.quads;  // indices now aligned; base's polys are valid for dest too
 }
 
+void NormalizeObject(Object &dest, Object const &base) {
+    if (dest.firstMesh().quads.empty())
+        ConvertTrisToQuads(dest.firstMesh());
+    try {
+        RestoreVertIndices(base.firstMesh(), base.vertices, dest.firstMesh(), dest.vertices);
+    }
+    catch (std::exception e) {
+        ::Error(e.what());
+    }
+}
+
 void ConvertSkinning(Object const &base, Object &dest) {
     if (base.meshes.empty() || dest.meshes.empty()) {
         ::Error("Empty meshes");
@@ -257,28 +268,20 @@ void ConvertSkinning(Object const &base, Object &dest) {
         ::Error("Vertex count doesn't match: %d (base) - %d (dest)", base.vertices.size(), dest.vertices.size());
         return;
     }
-    auto const &baseMesh = base.meshes[0];
-    auto &destMesh = dest.meshes[0];
-    ConvertTrisToQuads(destMesh);
-    try {
-        RestoreVertIndices(baseMesh, base.vertices, destMesh, dest.vertices);
-    }
-    catch (std::exception e) {
-        ::Error(e.what());
-    }
-    for (size_t q = 0; q < baseMesh.quads.size(); q++) {
+    NormalizeObject(dest, base);
+    for (size_t q = 0; q < base.firstMesh().quads.size(); q++) {
         for (size_t v = 0; v < 4; v++) {
             for (size_t i = 0; i < 8; i++) {
-                dest.vertices[destMesh.quads[q][v]].boneIndices[i] = base.vertices[baseMesh.quads[q][v]].boneIndices[i];
-                dest.vertices[destMesh.quads[q][v]].boneWeights[i] = base.vertices[baseMesh.quads[q][v]].boneWeights[i];
+                dest.vertices[dest.firstMesh().quads[q][v]].boneIndices[i] = base.vertices[base.firstMesh().quads[q][v]].boneIndices[i];
+                dest.vertices[dest.firstMesh().quads[q][v]].boneWeights[i] = base.vertices[base.firstMesh().quads[q][v]].boneWeights[i];
             }
         }
     }
     SetNumBones(dest.vertexFormat, NumBones(base.vertexFormat));
 }
 
-Object FindLargestObject(Model &model, std::string const &prefix) {
-    std::vector<Object *> objects;
+Object FindLargestObject(Model const &model, std::string const &prefix) {
+    std::vector<Object const *> objects;
     for (auto &o : model.objects) {
         if (o.name.starts_with(prefix))
             objects.push_back(&o);
@@ -292,20 +295,94 @@ Object FindLargestObject(Model &model, std::string const &prefix) {
     return Object();
 }
 
-int main() {
-    ModelOptions options;
-    options.AllowQuads = true;
-    Model dest(R"(E:\Temp\Projects\Rx3Tools\output\fc25pc\Parejo\var_0\head_189513_0_0_mesh.fbx)", options);
-    Model base(R"(C:\Users\User\Desktop\faces_fbx\head_0_0.fbx)", options);
-    auto head = FindLargestObject(dest, "head");
-    auto eyes = FindLargestObject(dest, "eyes");
-    ConvertSkinning(FindLargestObject(base, "head"), head);
-    ConvertSkinning(FindLargestObject(base, "eyes"), eyes);
-    dest.objects = { head, eyes };
-    dest.skeleton = base.skeleton;
-    for (auto &o : dest.objects) {
-        for (auto &v : o.vertices)
-            v.pos *= 100.0f;
+struct DeformationData {
+    std::vector<Vector3> vertexDeform;
+    Vector3 baseDeform;
+};
+
+DeformationData GetDeformationData(Model const &base, Model const &deformed, Object const &source) {
+    DeformationData data;
+    auto headBase = FindLargestObject(base, "head");
+    auto headDeformed = FindLargestObject(deformed, "head");
+    if (headBase.meshes.empty() || headDeformed.meshes.empty()) {
+        ::Error("Empty meshes");
+        return data;
     }
-    dest.WriteFbx(R"(C:\Users\User\Desktop\faces_fbx\head_dest.fbx)");
+    ::Error("%d", headBase.firstMesh().quads.size());
+    NormalizeObject(headBase, source);
+    NormalizeObject(headDeformed, source);
+    if (headBase.vertices.size() != headDeformed.vertices.size() || headBase.vertices.size() != source.vertices.size()) {
+        ::Error("GetDeformationData: Vertex count doesn't match (%d/%d/%d)", headBase.vertices.size(), headDeformed.vertices.size(), source.vertices.size());
+        return data;
+    }
+    if (headBase.firstMesh().quads.size() != headDeformed.firstMesh().quads.size() ||
+        headBase.firstMesh().quads.size() != source.firstMesh().quads.size())
+    {
+        ::Error("GetDeformationData: Poly count doesn't match (%d/%d/%d)",
+            headBase.firstMesh().quads.size(), headDeformed.firstMesh().quads.size(), source.firstMesh().quads.size());
+        return data;
+    }
+    int ExpectedPolyCount = 3160;
+    if (headBase.firstMesh().quads.size() != ExpectedPolyCount) {
+        ::Error("GetDeformationData: Poly count is not %d", ExpectedPolyCount);
+        return data;
+    }
+    if (headBase.firstMesh().quads.back()[2] != headBase.firstMesh().quads.back()[3]) {
+        ::Error("GetDeformationData: Base poly is not a triangle in base object", ExpectedPolyCount);
+        return data;
+    }
+    if (headDeformed.firstMesh().quads.back()[2] != headDeformed.firstMesh().quads.back()[3]) {
+        ::Error("GetDeformationData: Base poly is not a triangle in deformed object", ExpectedPolyCount);
+        return data;
+    }
+    data.vertexDeform.resize(headBase.vertices.size());
+    for (size_t i = 0; i < headBase.vertices.size(); i++)
+        data.vertexDeform[i] = headDeformed.vertices[i].pos - headBase.vertices[i].pos;
+    size_t BaseVertexID = headBase.firstMesh().quads.back()[2];
+    data.baseDeform = headDeformed.vertices[BaseVertexID].pos - headBase.vertices[BaseVertexID].pos;
+    return data;
+}
+
+void ApplyDeformations(Object &obj, DeformationData const &deformation, bool headDeformation) {
+    if (obj.meshes.empty()) {
+        ::Error("ApplyDeformations: Empty meshes");
+        return;
+    }
+    if (headDeformation && obj.vertices.size() != deformation.vertexDeform.size()) {
+        ::Error("ApplyDeformations: Vertex count doesn't match (%d/%d)", obj.vertices.size(), deformation.vertexDeform.size());
+        return;
+    }
+    if (headDeformation) {
+        for (size_t i = 0; i < obj.vertices.size(); i++)
+            obj.vertices[i].pos -= deformation.vertexDeform[i];
+    }
+    else {
+        for (size_t i = 0; i < obj.vertices.size(); i++)
+            obj.vertices[i].pos -= deformation.baseDeform;
+    }
+}
+
+int main() {
+    //std::filesystem::path folder = R"(C:\Users\User\Desktop\faces_fbx)";
+    //ModelOptions options;
+    //options.AllowQuads = true;
+    //Model dest(folder / "fc26.fbx", options);
+    //Model source(folder / "fifa16.fbx", options);
+    //auto head = FindLargestObject(dest, "head");
+    //auto eyes = FindLargestObject(dest, "eyes");
+    //auto sourceHead = FindLargestObject(source, "head");
+    //ConvertSkinning(sourceHead, head);
+    //auto deformation = GetDeformationData(
+    //    Model(folder / "deform_base.fbx", options), 
+    //    Model(folder / "deform_target.fbx", options), sourceHead);
+    //ApplyDeformations(head, deformation, true);
+    //ApplyDeformations(eyes, deformation, false);
+    //eyes.SetBone(source.GetBoneIndex("Face"));
+    //dest.objects = { head, eyes };
+    //dest.skeleton = source.skeleton;
+    //dest.WriteFbx(folder / "fc26to16.fbx");
+    Model m;
+    m.ReadFbx("untitled.fbx");
+    for (auto const &o : m.objects)
+        ::Message(o.name);
 }

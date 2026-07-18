@@ -29,6 +29,8 @@ struct Vector2 {
     bool Equal(Vector2 const &other, float epsilon) const;
     Vector2 &operator=(float f);
     Vector2 const SymMul(Vector2 const &o);
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 Vector2 operator+(Vector2 const &v1, Vector2 const &v2);
@@ -61,6 +63,8 @@ struct Vector3 {
     bool operator<(Vector3 const &other) const;
     Vector3 const SymMul(Vector3 const &o);
     Vector2 ToVector2() const;
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 Vector3 operator-(Vector3 const &v);
@@ -81,6 +85,8 @@ struct Vector4 {
     float operator[](unsigned int i) const;
     float &operator[](unsigned int i);
     Vector3 ToVector3() const;
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 struct Quaternion {
@@ -90,6 +96,8 @@ struct Quaternion {
     void Set(float X, float Y, float Z, float W);
     float operator[](unsigned int i) const;
     float &operator[](unsigned int i);
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 struct Matrix4x4 {
@@ -107,6 +115,8 @@ struct Matrix4x4 {
     void SetQuaternion(Quaternion const &q);
     static Matrix4x4 Identity();
     Matrix4x4 Inversed() const;
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 Vector3 operator*(const Matrix4x4 &mat, const Vector3 &vec);
@@ -129,6 +139,8 @@ struct RGBA {
     bool operator!=(RGBA const &other) const;
     bool operator<(RGBA const &other) const;
     bool IsBlack() const;
+    std::string ToString() const;
+    void FromString(std::string const &str);
 };
 
 RGBA operator+(RGBA const &v1, RGBA const &v2);

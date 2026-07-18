@@ -1,6 +1,6 @@
 #pragma once
 #include "ModelTypes.h"
-#include "ModelFbxHeader.h"
+#include "ModelFbxSdkHeader.h"
 
 FbxDouble2 ToFbx(Vector2 const &v);
 Vector2 FromFbx(FbxDouble2 const &v);

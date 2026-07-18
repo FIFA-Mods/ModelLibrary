@@ -74,17 +74,33 @@ struct Texture {
     std::map<std::string, PropertyValue> properties;
 };
 
+struct ShapeKeyVertex {
+    uint32_t vertexIndex; // Maps directly to Object::vertices
+    Vector3 deltaPos;
+    Vector3 deltaNormal;
+};
+
+struct ShapeKey {
+    std::string name;
+    std::vector<ShapeKeyVertex> vertices;
+};
+
 struct Object {
     std::string name, parent;
     Matrix4x4 transform;
     uint32_t vertexFormat;
     std::vector<Vertex> vertices;
-    std::vector<Mesh> meshes;
+    mutable std::vector<Mesh> meshes;
+    std::vector<ShapeKey> shapeKeys;
     std::array<std::string, 8> uvLayerNames;
     std::array<std::string, 8> colorLayerNames;
     std::map<std::string, PropertyValue> properties;
 
     Mesh &firstMesh();
+    Mesh const &firstMesh() const;
+    void ClearSkinning();
+    void SetBone(int boneIndex);
+    void MergeMeshes();
 };
 
 struct Bone {
@@ -99,15 +115,16 @@ struct Skeleton {
 };
 
 struct ModelOptions {
-    size_t VertexLimit = 0;
-    float ScaleFactor = 1.0f;
-    size_t BonesPerVertex = 0;
-    bool PreTransformVertices = false;
-    bool GenerateNormals = false;
-    bool GenerateTangents = false;
-    bool FlipWindingOrder = false;
-    bool FlipUVs = false;
+    //size_t VertexLimit = 0;
+    //float ScaleFactor = 1.0f;
+    //size_t BonesPerVertex = 0;
+    //bool PreTransformVertices = false;
+    //bool GenerateNormals = false;
+    //bool GenerateTangents = false;
+    //bool FlipWindingOrder = false;
+    //bool FlipUVs = false;
     bool AllowQuads = false;
+    bool MergeMeshes = false;
 };
 
 struct Model {
@@ -125,10 +142,15 @@ struct Model {
     void DumpSkeletonHierarchy(const Skeleton &skeleton);
     void ReadFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void WriteFbx(std::filesystem::path const &filename, bool ascii = false);
-    void ReadObj(std::filesystem::path const &filename);
+    void ReadObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void WriteObj(std::filesystem::path const &filename);
+    int GetBoneIndex(std::string const &boneName) const;
+    Object const *GetObjectByName(std::string const &objectName, bool trimNames = false) const;
+    Object *GetObjectByName(std::string const &objectName, bool trimNames = false);
 
     Model &operator+=(Model const &other);
 };
 
 Model operator+(Model lhs, Model const &rhs);
+
+void ModelPostLoadProcess(Model &model, ModelOptions const &options);
