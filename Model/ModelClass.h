@@ -136,17 +136,21 @@ struct Model {
     std::map<std::string, PropertyValue> properties;
 
     Model();
-    Model(std::filesystem::path const &fbxFileName, ModelOptions const &options = ModelOptions());
-    std::string GenerateObjectName() const;
+    Model(std::filesystem::path const &fileName, ModelOptions const &options = ModelOptions());
     void Clear();
+    std::string GenerateObjectName() const;
     void DumpSkeletonHierarchy(const Skeleton &skeleton);
     void ReadFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void WriteFbx(std::filesystem::path const &filename, bool ascii = false);
     void ReadObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void WriteObj(std::filesystem::path const &filename);
+    void Read(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
+    void Write(std::filesystem::path const &filename, bool fbxAscii = false);
     int GetBoneIndex(std::string const &boneName) const;
     Object const *GetObjectByName(std::string const &objectName, bool trimNames = false) const;
     Object *GetObjectByName(std::string const &objectName, bool trimNames = false);
+    bool IsSkeleton() const;
+    bool HasShapeKeys() const;
 
     Model &operator+=(Model const &other);
 };

@@ -2,11 +2,9 @@
 #include <fstream>
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
-#include "Error.h"
-#undef min
-#undef max
 
 void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &options) {
+    Clear();
     FbxManager *sdkManager = FbxManager::Create();
     if (!sdkManager)
         throw std::runtime_error("unable to create sdk manager");

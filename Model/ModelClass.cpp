@@ -4,6 +4,26 @@
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
 
+namespace model_helper::model_utils {
+
+std::wstring ToLower(std::wstring const &str) {
+    std::wstring result;
+    for (size_t i = 0; i < str.length(); i++)
+        result += tolower(static_cast<unsigned short>(str[i]));
+    return result;
+}
+
+std::string ToLower(std::string const &str) {
+    std::string result;
+    for (size_t i = 0; i < str.length(); i++)
+        result += tolower(static_cast<unsigned char>(str[i]));
+    return result;
+}
+
+}
+
+using namespace model_helper::model_utils;
+
 void SetNumTexCoords(uint32_t &format, uint8_t n) {
     format = (format & ~(0xF << 3)) | ((n & 0xF) << 3);
 }
@@ -30,7 +50,24 @@ Material::Material(std::string const &n, std::string const &tex, RGBA const &col
 Model::Model() {}
 
 Model::Model(std::filesystem::path const &fbxFileName, ModelOptions const &options) {
-    ReadFbx(fbxFileName, options);
+    Read(fbxFileName, options);
+}
+
+void Model::Read(std::filesystem::path const &filename, ModelOptions const &options) {
+    Clear();
+    auto ext = ToLower(filename.extension().string());
+    if (ext == ".fbx")
+        ReadFbx(filename, options);
+    else if (ext == ".obj")
+        ReadObj(filename, options);
+}
+
+void Model::Write(std::filesystem::path const &filename, bool fbxAscii) {
+    auto ext = ToLower(filename.extension().string());
+    if (ext == ".fbx")
+        WriteFbx(filename, fbxAscii);
+    else if (ext == ".obj")
+        WriteObj(filename);
 }
 
 std::string Model::GenerateObjectName() const {
@@ -305,4 +342,19 @@ Object const *Model::GetObjectByName(std::string const &objectName, bool trimNam
 
 Object *Model::GetObjectByName(std::string const &objectName, bool trimNames) {
     return const_cast<Object *>(std::as_const(*this).GetObjectByName(objectName, trimNames));
+}
+
+inline bool Model::IsSkeleton() const {
+    return objects.empty() && !skeleton.bones.empty();
+}
+
+inline bool Model::HasShapeKeys() const {
+    bool hasShapeKeys = false;
+    for (auto const &o : objects) {
+        if (!o.shapeKeys.empty()) {
+            hasShapeKeys = true;
+            break;
+        }
+    }
+    return hasShapeKeys;
 }
