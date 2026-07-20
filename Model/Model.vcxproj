@@ -7,6 +7,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="3rdparty\mapbox\earcut.hpp" />
+    <ClInclude Include="3rdparty\NvTriStrip\NvTriStrip.h" />
+    <ClInclude Include="3rdparty\NvTriStrip\NvTriStripObjects.h" />
+    <ClInclude Include="3rdparty\NvTriStrip\VertexCache.h" />
+    <ClInclude Include="MeshOperations\MeshTriangulation.h" />
+    <ClInclude Include="MeshOperations\MeshTristrip.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelClass.h" />
     <ClInclude Include="ModelFbxSdkHeader.h" />
@@ -14,6 +20,11 @@
     <ClInclude Include="ModelTypes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="3rdparty\NvTriStrip\NvTriStrip.cpp" />
+    <ClCompile Include="3rdparty\NvTriStrip\NvTriStripObjects.cpp" />
+    <ClCompile Include="3rdparty\NvTriStrip\VertexCache.cpp" />
+    <ClCompile Include="MeshOperations\MeshTriangulation.cpp" />
+    <ClCompile Include="MeshOperations\MeshTristrip.cpp" />
     <ClCompile Include="ModelClass.cpp" />
     <ClCompile Include="ModelTypeConversion.cpp" />
     <ClCompile Include="ModelTypes.cpp" />

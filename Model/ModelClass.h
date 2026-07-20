@@ -1,6 +1,8 @@
 #pragma once
 #include "ModelTypes.h"
 
+#define MODEL_LIBRARY_VERSION "0.1"
+
 using PropertyValue = std::variant<int, float, double, std::string, Vector2, Vector3, Vector4>;
 
 enum VertexFormat {
@@ -52,9 +54,13 @@ struct Vertex {
 
 struct Mesh {
     std::string material;
-    std::vector<std::array<uint32_t, 3>> triangles;
-    std::vector<std::array<uint32_t, 4>> quads;
+    std::vector<std::vector<uint32_t>> polygons;
     std::map<std::string, PropertyValue> properties;
+
+    bool IsTriangulated() const;
+    bool IsOnlyTrisAndQuads() const;
+    void Triangulate(const std::vector<Vertex> &vertices);
+    void LeaveTrisAndQuads(const std::vector<Vertex> &vertices);
 };
 
 struct Material {
@@ -101,6 +107,10 @@ struct Object {
     void ClearSkinning();
     void SetBone(int boneIndex);
     void MergeMeshes();
+    bool IsTriangulated() const;
+    bool IsOnlyTrisAndQuads() const;
+    void Triangulate();
+    void LeaveTrisAndQuads();
 };
 
 struct Bone {
@@ -123,8 +133,11 @@ struct ModelOptions {
     //bool GenerateTangents = false;
     //bool FlipWindingOrder = false;
     //bool FlipUVs = false;
-    bool AllowQuads = false;
+
+    std::string Writer;
+    bool AlwaysTriangulate = false;
     bool MergeMeshes = false;
+    bool FbxAscii = false;
 };
 
 struct Model {
@@ -141,16 +154,20 @@ struct Model {
     std::string GenerateObjectName() const;
     void DumpSkeletonHierarchy(const Skeleton &skeleton);
     void ReadFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void WriteFbx(std::filesystem::path const &filename, bool ascii = false);
+    void WriteFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void ReadObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void WriteObj(std::filesystem::path const &filename);
+    void WriteObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     void Read(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void Write(std::filesystem::path const &filename, bool fbxAscii = false);
+    void Write(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
     int GetBoneIndex(std::string const &boneName) const;
     Object const *GetObjectByName(std::string const &objectName, bool trimNames = false) const;
     Object *GetObjectByName(std::string const &objectName, bool trimNames = false);
     bool IsSkeleton() const;
     bool HasShapeKeys() const;
+    bool IsTriangulated() const;
+    bool IsOnlyTrisAndQuads() const;
+    void Triangulate();
+    void LeaveTrisAndQuads();
 
     Model &operator+=(Model const &other);
 };

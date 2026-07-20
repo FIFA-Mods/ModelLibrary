@@ -3,6 +3,7 @@
 #include <fstream>
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
+#include "MeshOperations/MeshTriangulation.h"
 
 namespace model_helper::model_utils {
 
@@ -62,12 +63,12 @@ void Model::Read(std::filesystem::path const &filename, ModelOptions const &opti
         ReadObj(filename, options);
 }
 
-void Model::Write(std::filesystem::path const &filename, bool fbxAscii) {
+void Model::Write(std::filesystem::path const &filename, ModelOptions const &options) {
     auto ext = ToLower(filename.extension().string());
     if (ext == ".fbx")
-        WriteFbx(filename, fbxAscii);
+        WriteFbx(filename, options);
     else if (ext == ".obj")
-        WriteObj(filename);
+        WriteObj(filename, options);
 }
 
 std::string Model::GenerateObjectName() const {
@@ -285,10 +286,8 @@ void Object::MergeMeshes() {
     Mesh newMesh = meshes[0];
     for (size_t i = 1; i < meshes.size(); i++) {
         auto const &m = meshes[i];
-        if (!m.triangles.empty())
-            newMesh.triangles.insert(newMesh.triangles.end(), m.triangles.begin(), m.triangles.end());
-        if (!m.quads.empty())
-            newMesh.quads.insert(newMesh.quads.end(), m.quads.begin(), m.quads.end());
+        if (!m.polygons.empty())
+            newMesh.polygons.insert(newMesh.polygons.end(), m.polygons.begin(), m.polygons.end());
         if (!m.properties.empty()) {
             for (auto const &[k, v] : m.properties) {
                 if (newMesh.properties.find(k) == newMesh.properties.end())
@@ -298,6 +297,24 @@ void Object::MergeMeshes() {
     }
     meshes.clear();
     meshes.push_back(newMesh);
+}
+
+bool Object::IsTriangulated() const {
+    for (auto &m : meshes) if (!m.IsTriangulated()) return false;
+    return true;
+}
+
+bool Object::IsOnlyTrisAndQuads() const {
+    for (auto &m : meshes) if (!m.IsOnlyTrisAndQuads()) return false;
+    return true;
+}
+
+void Object::Triangulate() {
+    for (auto &m : meshes) m.Triangulate(vertices);
+}
+
+void Object::LeaveTrisAndQuads() {
+    for (auto &m : meshes) m.LeaveTrisAndQuads(vertices);
 }
 
 int Model::GetBoneIndex(std::string const &boneName) const {
@@ -344,11 +361,11 @@ Object *Model::GetObjectByName(std::string const &objectName, bool trimNames) {
     return const_cast<Object *>(std::as_const(*this).GetObjectByName(objectName, trimNames));
 }
 
-inline bool Model::IsSkeleton() const {
+bool Model::IsSkeleton() const {
     return objects.empty() && !skeleton.bones.empty();
 }
 
-inline bool Model::HasShapeKeys() const {
+bool Model::HasShapeKeys() const {
     bool hasShapeKeys = false;
     for (auto const &o : objects) {
         if (!o.shapeKeys.empty()) {
@@ -357,4 +374,42 @@ inline bool Model::HasShapeKeys() const {
         }
     }
     return hasShapeKeys;
+}
+
+bool Model::IsTriangulated() const {
+    for (auto &o : objects) if (!o.IsTriangulated()) return false;
+    return true;
+}
+
+bool Model::IsOnlyTrisAndQuads() const {
+    for (auto &o : objects) if (!o.IsOnlyTrisAndQuads()) return false;
+    return true;
+}
+
+void Model::Triangulate() {
+    for (auto &o : objects) o.Triangulate();
+}
+
+void Model::LeaveTrisAndQuads() {
+    for (auto &o : objects) o.LeaveTrisAndQuads();
+}
+
+bool Mesh::IsTriangulated() const {
+    for (auto &p : polygons) if (p.size() != 3) return false;
+    return true;
+}
+
+bool Mesh::IsOnlyTrisAndQuads() const {
+    for (auto &p : polygons) if (p.size() != 3 && p.size() != 4) return false;
+    return true;
+}
+
+void Mesh::Triangulate(const std::vector<Vertex> &vertices) {
+    if (IsTriangulated()) return;
+    polygons = MeshTriangulation::Triangulate(polygons, vertices);
+}
+
+void Mesh::LeaveTrisAndQuads(const std::vector<Vertex> &vertices) {
+    if (IsOnlyTrisAndQuads()) return;
+    polygons = MeshTriangulation::LeaveTrisAndQuads(polygons, vertices);
 }

@@ -2,6 +2,7 @@
 #include <fstream>
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
+#include "MeshOperations/MeshTriangulation.h"
 
 void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &options) {
     Clear();
@@ -33,7 +34,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
     }
     importer->Destroy();
     FbxGeometryConverter geomConv(sdkManager);
-    if (!options.AllowQuads) {
+    if (options.AlwaysTriangulate) {
         geomConv.Triangulate(scene, true);
         if (!scene) {
             ios->Destroy();
@@ -352,7 +353,6 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
             return h;
         }
     };
-    int maxPolySize = options.AllowQuads ? 4 : 3;
     std::function<void(FbxNode *, std::string const &)> NodeCallback;
     NodeCallback = [&](FbxNode *node, std::string const &parentName) {
         if (!node) return;
@@ -454,7 +454,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
 
                 // Key: FBX node-local material index (matches GetMaterial(idx) on the owning node).
                 // Value: triangle index triples referencing outVertices.
-                std::map<int, std::vector<std::array<uint32_t, 4>>> matPolys;
+                std::map<int, std::vector<std::vector<uint32_t>>> matPolys;
 
                 std::unordered_map<PVKey, uint32_t, PVKeyHash> keyToIndex;
 
@@ -471,11 +471,9 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                 const int polyCount = fbxMesh->GetPolygonCount();
                 for (int p = 0; p < polyCount; ++p) {
                     int polySize = fbxMesh->GetPolygonSize(p);
-                    if (polySize != 3 && polySize != maxPolySize)
-                        continue;
                     int basePV = getPolyVertexBaseIndex(p);
 
-                    uint32_t polyIdx[4];
+                    std::vector<uint32_t> polyIdx(polySize);
 
                     for (int pv = 0; pv < polySize; ++pv) {
                         int cp = fbxMesh->GetPolygonVertex(p, pv);
@@ -666,9 +664,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                         else
                             matIdx = matElem->GetIndexArray().GetAt(p);
                     }
-                    if (polySize == 3)
-                        polyIdx[3] = polyIdx[2];
-                    matPolys[matIdx].push_back({ polyIdx[0], polyIdx[1], polyIdx[2], polyIdx[3] });
+                    matPolys[matIdx].push_back(polyIdx);
                 } // polygon loop
 
                 // Shape keys / blend shapes
@@ -746,22 +742,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                 for (auto &[idx, polys] : matPolys) {
                     Mesh m;
                     m.material = GetMaterialNameForMesh(fbxMesh, idx);
-                    bool hasQuads = false;
-                    if (options.AllowQuads) {
-                        for (auto const &poly : polys) {
-                            if (poly[2] != poly[3]) {
-                                hasQuads = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (hasQuads)
-                        m.quads = std::move(polys);
-                    else {
-                        m.triangles.resize(polys.size());
-                        for (size_t pi = 0; pi < polys.size(); pi++)
-                            m.triangles[pi] = { polys[pi][0], polys[pi][1], polys[pi][2] };
-                    }
+                    m.polygons = std::move(polys);
                     objPtr->meshes.push_back(std::move(m));
                 }
             } // attribute loop
@@ -776,7 +757,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
     ModelPostLoadProcess(*this, options);
 }
 
-void Model::WriteFbx(std::filesystem::path const &filename, bool ascii) {
+void Model::WriteFbx(std::filesystem::path const &filename, ModelOptions const &options) {
     auto getObjectIndex = [&](std::string const &name) {
         for (size_t i = 0; i < objects.size(); i++) {
             if (objects[i].name == name)
@@ -971,48 +952,19 @@ void Model::WriteFbx(std::filesystem::path const &filename, bool ascii) {
             std::map<int, int> globalToLocal;
             int nextLocalIdx = 0;
             for (auto const &mesh : obj.meshes) {
-                // triangles
-                for (size_t t = 0; t < mesh.triangles.size(); ++t) {
-                    uint32_t i0 = mesh.triangles[t][0];
-                    uint32_t i1 = mesh.triangles[t][1];
-                    uint32_t i2 = mesh.triangles[t][2];
-                    fbxMesh->BeginPolygon(-1, -1, false);
-                    fbxMesh->AddPolygon((int)i0);
-                    fbxMesh->AddPolygon((int)i1);
-                    fbxMesh->AddPolygon((int)i2);
-                    fbxMesh->EndPolygon();
-                    const unsigned int cornerIdx[3] = { i0, i1, i2 };
-                    for (int corner = 0; corner < 3; ++corner) {
-                        int vIdx = (int)cornerIdx[corner];
-                        if (leNormal)
-                            leNormal->GetIndexArray().Add(vIdx);
-                        if (leTangent)
-                            leTangent->GetIndexArray().Add(vIdx);
-                        if (leBinormal)
-                            leBinormal->GetIndexArray().Add(vIdx);
-                        for (unsigned int uvSet = 0; uvSet < uvLayers.size(); ++uvSet)
-                            uvLayers[uvSet]->GetIndexArray().Add(vIdx);
-                        for (unsigned int cIdx = 0; cIdx < colorLayers.size(); ++cIdx)
-                            colorLayers[cIdx]->GetIndexArray().Add(vIdx);
-                    }
+                std::vector<std::vector<uint32_t>> triangulatedStorage;
+                const std::vector<std::vector<uint32_t>> *polysToWrite = &mesh.polygons;
+                if (options.AlwaysTriangulate && !mesh.IsTriangulated()) {
+                    triangulatedStorage = MeshTriangulation::Triangulate(mesh.polygons, obj.vertices);
+                    polysToWrite = &triangulatedStorage;
                 }
-                // quads
-                for (size_t q = 0; q < mesh.quads.size(); ++q) {
-                    uint32_t i0 = mesh.quads[q][0];
-                    uint32_t i1 = mesh.quads[q][1];
-                    uint32_t i2 = mesh.quads[q][2];
-                    uint32_t i3 = mesh.quads[q][3];
-                    int numCorners = i2 == i3 ? 3 : 4;
+                for (size_t p = 0; p < polysToWrite->size(); ++p) {
                     fbxMesh->BeginPolygon(-1, -1, false);
-                    fbxMesh->AddPolygon((int)i0);
-                    fbxMesh->AddPolygon((int)i1);
-                    fbxMesh->AddPolygon((int)i2);
-                    if (numCorners == 4)
-                        fbxMesh->AddPolygon((int)i3);
+                    for (size_t c = 0; c < polysToWrite->at(p).size(); c++)
+                        fbxMesh->AddPolygon((int)polysToWrite->at(p)[c]);
                     fbxMesh->EndPolygon();
-                    const unsigned int cornerIdx[4] = { i0, i1, i2, i3 };
-                    for (int corner = 0; corner < numCorners; ++corner) {
-                        int vIdx = (int)cornerIdx[corner];
+                    for (size_t c = 0; c < polysToWrite->at(p).size(); c++) {
+                        int vIdx = polysToWrite->at(p)[c];
                         if (leNormal)
                             leNormal->GetIndexArray().Add(vIdx);
                         if (leTangent)
@@ -1037,9 +989,7 @@ void Model::WriteFbx(std::filesystem::path const &filename, bool ascii) {
                         localIdx = it->second;
                     }
                 }
-                for (size_t p = 0; p < mesh.triangles.size(); ++p)
-                    leMat->GetIndexArray().Add(localIdx);
-                for (size_t p = 0; p < mesh.quads.size(); ++p)
+                for (size_t p = 0; p < polysToWrite->size(); ++p)
                     leMat->GetIndexArray().Add(localIdx);
             }
             if (!uvLayers.empty()) {
@@ -1160,7 +1110,7 @@ void Model::WriteFbx(std::filesystem::path const &filename, bool ascii) {
     char *pFilenameUtf8 = nullptr;
     FbxWCToUTF8(filename.c_str(), pFilenameUtf8);
     int fileFormat = -1;
-    if (ascii) {
+    if (options.FbxAscii) {
         int numFormats = fbxManager->GetIOPluginRegistry()->GetWriterFormatCount();
         for (int i = 0; i < numFormats; ++i) {
             if (fbxManager->GetIOPluginRegistry()->WriterIsFBX(i)) {

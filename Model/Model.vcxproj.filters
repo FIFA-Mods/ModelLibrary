@@ -6,6 +6,24 @@
     <ClInclude Include="ModelTypes.h" />
     <ClInclude Include="ModelTypeConversion.h" />
     <ClInclude Include="ModelFbxSdkHeader.h" />
+    <ClInclude Include="MeshOperations\MeshTriangulation.h">
+      <Filter>MeshOperations</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\NvTriStrip\NvTriStrip.h">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\NvTriStrip\NvTriStripObjects.h">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\NvTriStrip\VertexCache.h">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\mapbox\earcut.hpp">
+      <Filter>3rdparty\mapbox</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshOperations\MeshTristrip.h">
+      <Filter>MeshOperations</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelClass.cpp" />
@@ -17,10 +35,37 @@
     <ClCompile Include="ReadWrite\ModelOBJ.cpp">
       <Filter>ReadWrite</Filter>
     </ClCompile>
+    <ClCompile Include="MeshOperations\MeshTriangulation.cpp">
+      <Filter>MeshOperations</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\NvTriStrip\NvTriStrip.cpp">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\NvTriStrip\NvTriStripObjects.cpp">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\NvTriStrip\VertexCache.cpp">
+      <Filter>3rdparty\NvTriStrip</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshOperations\MeshTristrip.cpp">
+      <Filter>MeshOperations</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ReadWrite">
       <UniqueIdentifier>{482457a3-33ff-4fe2-9dbf-3926c7f2084d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MeshOperations">
+      <UniqueIdentifier>{73bfc5b1-ae96-4327-823a-626b1c5c93be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{6d54eb53-0017-45fd-b39b-49cc95aaee5e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\mapbox">
+      <UniqueIdentifier>{aa3d6941-39ee-425f-bf48-5abe3fa9d19f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\NvTriStrip">
+      <UniqueIdentifier>{47859f22-1e59-4bd2-a1e8-54bf24cffec1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
