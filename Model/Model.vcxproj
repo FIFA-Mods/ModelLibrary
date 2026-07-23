@@ -11,6 +11,7 @@
     <ClInclude Include="3rdparty\NvTriStrip\NvTriStrip.h" />
     <ClInclude Include="3rdparty\NvTriStrip\NvTriStripObjects.h" />
     <ClInclude Include="3rdparty\NvTriStrip\VertexCache.h" />
+    <ClInclude Include="MeshOperations\MeshSkinning.h" />
     <ClInclude Include="MeshOperations\MeshTriangulation.h" />
     <ClInclude Include="MeshOperations\MeshTristrip.h" />
     <ClInclude Include="Model.h" />
@@ -23,6 +24,7 @@
     <ClCompile Include="3rdparty\NvTriStrip\NvTriStrip.cpp" />
     <ClCompile Include="3rdparty\NvTriStrip\NvTriStripObjects.cpp" />
     <ClCompile Include="3rdparty\NvTriStrip\VertexCache.cpp" />
+    <ClCompile Include="MeshOperations\MeshSkinning.cpp" />
     <ClCompile Include="MeshOperations\MeshTriangulation.cpp" />
     <ClCompile Include="MeshOperations\MeshTristrip.cpp" />
     <ClCompile Include="ModelClass.cpp" />

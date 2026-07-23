@@ -4,6 +4,103 @@
 #include "ModelTypeConversion.h"
 #include "MeshOperations/MeshTriangulation.h"
 
+std::map<std::string, PropertyValue> ExtractFbxProperties(FbxObject *obj) {
+    std::map<std::string, PropertyValue> props;
+    for (FbxProperty prop = obj->GetFirstProperty(); prop.IsValid(); prop = obj->GetNextProperty(prop)) {
+        if (!prop.GetFlag(FbxPropertyFlags::eUserDefined))
+            continue;
+        std::string key = prop.GetName().Buffer();
+        FbxDataType dataType = prop.GetPropertyDataType();
+        if (dataType == FbxIntDT)
+            props[key] = prop.Get<int>();
+        else if (dataType == FbxFloatDT)
+            props[key] = prop.Get<float>();
+        else if (dataType == FbxDoubleDT)
+            props[key] = prop.Get<double>();
+        else if (dataType == FbxDouble2DT)
+            props[key] = FromFbx(prop.Get<FbxDouble2>());
+        else if (dataType == FbxDouble3DT)
+            props[key] = FromFbx(prop.Get<FbxDouble3>());
+        else if (dataType == FbxDouble4DT)
+            props[key] = FromFbx(prop.Get<FbxDouble4>());
+        else if (dataType == FbxStringDT) {
+            FbxString fbxStr = prop.Get<FbxString>();
+            std::string str = fbxStr.Buffer();
+            Matrix4x4 mat{};
+            int n = sscanf_s(str.c_str(),
+                " matrix ( %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g , %g ) ",
+                &mat.m[0][0], &mat.m[0][1], &mat.m[0][2], &mat.m[0][3],
+                &mat.m[1][0], &mat.m[1][1], &mat.m[1][2], &mat.m[1][3],
+                &mat.m[2][0], &mat.m[2][1], &mat.m[2][2], &mat.m[2][3],
+                &mat.m[3][0], &mat.m[3][1], &mat.m[3][2], &mat.m[3][3]
+            );
+            if (n == 16)
+                props[key] = mat;
+            else
+                props[key] = str;
+        }
+    }
+    return props;
+}
+
+void AttachFbxProperties(FbxObject *obj, std::map<std::string, PropertyValue> const &props) {
+    for (auto &[key, value] : props) {
+        if (key.starts_with("internal:"))
+            continue;
+        std::visit([&](auto &&val) {
+            using T = std::decay_t<decltype(val)>;
+            FbxProperty prop;
+            if constexpr (std::is_same_v<T, int>) {
+                prop = FbxProperty::Create(obj, FbxIntDT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(val);
+            }
+            else if constexpr (std::is_same_v<T, float>) {
+                prop = FbxProperty::Create(obj, FbxFloatDT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(val);
+            }
+            else if constexpr (std::is_same_v<T, double>) {
+                prop = FbxProperty::Create(obj, FbxDoubleDT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(val);
+            }
+            else if constexpr (std::is_same_v<T, std::string>) {
+                prop = FbxProperty::Create(obj, FbxStringDT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(FbxString(val.c_str()));
+            }
+            else if constexpr (std::is_same_v<T, Vector2>) {
+                prop = FbxProperty::Create(obj, FbxDouble2DT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(ToFbx(val));
+            }
+            else if constexpr (std::is_same_v<T, Vector3>) {
+                prop = FbxProperty::Create(obj, FbxDouble3DT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(ToFbx(val));
+            }
+            else if constexpr (std::is_same_v<T, Vector4>) {
+                prop = FbxProperty::Create(obj, FbxDouble4DT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                prop.Set(ToFbx(val));
+            }
+            else if constexpr (std::is_same_v<T, Matrix4x4>) {
+                prop = FbxProperty::Create(obj, FbxStringDT, key.c_str());
+                prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+                char matString[512];
+                sprintf_s(matString, "matrix(%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g,%g)",
+                    val.m[0][0], val.m[0][1], val.m[0][2], val.m[0][3],
+                    val.m[1][0], val.m[1][1], val.m[1][2], val.m[1][3],
+                    val.m[2][0], val.m[2][1], val.m[2][2], val.m[2][3],
+                    val.m[3][0], val.m[3][1], val.m[3][2], val.m[3][3]
+                );
+                prop.Set(FbxString(matString));
+            }
+        }, value);
+    }
+}
+
 void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &options) {
     Clear();
     FbxManager *sdkManager = FbxManager::Create();
@@ -48,11 +145,11 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
         sdkManager->Destroy();
         throw std::runtime_error("unable to find scene root node");
     }
-
+    properties = ExtractFbxProperties(scene);
     name = filename.stem().string();
     std::map<std::string, size_t> texKeyToIndex;
     std::set<std::string> usedTexNames;
-    auto MakeUniqueTexName = [&usedTexNames](const std::string &base) {
+    auto MakeUniqueTexName = [&usedTexNames](std::string const &base) {
         std::string n = base;
         if (n.empty()) n = "texture";
         std::string unique = n;
@@ -63,10 +160,11 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
         usedTexNames.insert(unique);
         return unique;
     };
-    auto AddTextureEntry = [&](const std::string &key, const std::string &filenameStr) -> size_t {
+    auto AddTextureEntry = [&](std::string const &key, std::string const &filenameStr, FbxFileTexture *ft) -> size_t {
         auto it = texKeyToIndex.find(key);
         if (it != texKeyToIndex.end()) return it->second;
         Texture t;
+        t.properties = ExtractFbxProperties(ft);
         t.name = MakeUniqueTexName(std::filesystem::path(filenameStr).stem().string());
         t.filename = filenameStr;
         size_t idx = textures.size();
@@ -79,6 +177,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
     for (int mi = 0; mi < scene->GetMaterialCount(); ++mi) {
         FbxSurfaceMaterial *fmat = scene->GetMaterial(mi);
         Material mat;
+        mat.properties = ExtractFbxProperties(fmat);
         std::string matName = fmat->GetName() ? fmat->GetName() : ("mat_" + std::to_string(mi));
         mat.name = matName;
         FbxProperty diffuseProp = fmat->FindProperty(FbxSurfaceMaterial::sDiffuse);
@@ -98,7 +197,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                     FbxFileTexture *ft = lTex->GetSrcObject<FbxFileTexture>(0);
                     if (ft) {
                         std::string fname = ft->GetFileName() ? ft->GetFileName() : ft->GetName();
-                        size_t tidx = AddTextureEntry(fname.empty() ? ft->GetName() : fname, fname);
+                        size_t tidx = AddTextureEntry(fname.empty() ? ft->GetName() : fname, fname, ft);
                         return textures[tidx].name;
                     }
                 }
@@ -111,11 +210,11 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                         std::string fname = ft->GetFileName() ? ft->GetFileName() : ft->GetName();
                         if (fname.empty()) {
                             std::string emb = std::string("embedded_") + (ft->GetName() ? ft->GetName() : "tex");
-                            size_t tidx = AddTextureEntry(emb, emb);
+                            size_t tidx = AddTextureEntry(emb, emb, ft);
                             return textures[tidx].name;
                         }
                         else {
-                            size_t tidx = AddTextureEntry(fname, fname);
+                            size_t tidx = AddTextureEntry(fname, fname, ft);
                             return textures[tidx].name;
                         }
                     }
@@ -255,6 +354,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
         if (!n) return;
         if (bonesToInclude.find(n) == bonesToInclude.end()) return;
         Bone b;
+        b.properties = ExtractFbxProperties(n);
         std::string bname = n->GetName() ? n->GetName() : std::string();
         b.name = MakeUniqueBoneName(bname);
         b.matrix = FromFbx(n->EvaluateLocalTransform());
@@ -308,11 +408,15 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
         usedNodeNames.insert(uniqueName);
         return uniqueName;
     };
-    auto CreateObject = [&](std::string const &objName, std::string const &parentName, const FbxAMatrix &transform) -> Object & {
+    auto CreateObject = [&](std::string const &objName, std::string const &parentName, const FbxAMatrix &transform,
+        FbxNode *node = nullptr) -> Object &
+    {
         Object &obj = objects.emplace_back();
         obj.name = MakeUniqueObjectName(objName);
         obj.parent = parentName;
         obj.transform = FromFbx(transform);
+        if (node)
+            obj.properties = ExtractFbxProperties(node);
         return obj;
     };
     auto GetMaterialNameForMesh = [&](FbxMesh *fbxMesh, int materialIndex) -> std::string {
@@ -361,7 +465,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
 
         if (bonesToInclude.find(node) == bonesToInclude.end()) {
             FbxAMatrix localTransform = node->EvaluateLocalTransform();
-            Object &nodeObj = CreateObject(nodeName, parentName, localTransform);
+            Object &nodeObj = CreateObject(nodeName, parentName, localTransform, node);
             newParent = nodeObj.name;
             Object *objPtr = &nodeObj;
 
@@ -372,7 +476,13 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelOptions const &o
                 FbxMesh *fbxMesh = FbxCast<FbxMesh>(attr);
                 if (!fbxMesh) continue;
                 // If node has one mesh attribute, use the nodeObj. If multiple, create per-mesh child object.
-                if (node->GetNodeAttributeCount() > 1) {
+                int meshAttrCount = 0;
+                for (int i = 0; i < node->GetNodeAttributeCount(); ++i) {
+                    FbxNodeAttribute *a = node->GetNodeAttributeByIndex(i);
+                    if (a && a->GetAttributeType() == FbxNodeAttribute::eMesh)
+                        meshAttrCount++;
+                }
+                if (meshAttrCount > 1) {
                     std::string meshName = fbxMesh->GetName() ? fbxMesh->GetName() : (newParent + "_mesh" + std::to_string(attrIndex));
                     objPtr = &CreateObject(meshName, newParent, FbxAMatrix()); // identity transform
                 }
@@ -779,62 +889,17 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelOptions const &
         }
         return -1;
     };
-    auto attachProperties = [](FbxObject *obj, std::map<std::string, PropertyValue> const &props) {
-        for (auto &[key, value] : props) {
-            if (key.starts_with("internal:"))
-                continue;
-            std::visit([&](auto &&val) {
-                using T = std::decay_t<decltype(val)>;
-                FbxProperty prop;
-                if constexpr (std::is_same_v<T, int>) {
-                    prop = FbxProperty::Create(obj, FbxIntDT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(val);
-                }
-                else if constexpr (std::is_same_v<T, float>) {
-                    prop = FbxProperty::Create(obj, FbxFloatDT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(val);
-                }
-                else if constexpr (std::is_same_v<T, double>) {
-                    prop = FbxProperty::Create(obj, FbxDoubleDT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(val);
-                }
-                else if constexpr (std::is_same_v<T, std::string>) {
-                    prop = FbxProperty::Create(obj, FbxStringDT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(FbxString(val.c_str()));
-                }
-                else if constexpr (std::is_same_v<T, Vector2>) {
-                    prop = FbxProperty::Create(obj, FbxDouble2DT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(ToFbx(val));
-                }
-                else if constexpr (std::is_same_v<T, Vector3>) {
-                    prop = FbxProperty::Create(obj, FbxDouble3DT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(ToFbx(val));
-                }
-                else if constexpr (std::is_same_v<T, Vector4>) {
-                    prop = FbxProperty::Create(obj, FbxDouble4DT, key.c_str());
-                    prop.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-                    prop.Set(ToFbx(val));
-                }
-            }, value);
-        }
-    };
     FbxManager *fbxManager = FbxManager::Create();
     if (!fbxManager)
         throw std::runtime_error("unable to create fbx manager");
     FbxScene *fbxScene = FbxScene::Create(fbxManager, filename.stem().string().c_str());
-    attachProperties(fbxScene, properties);
+    AttachFbxProperties(fbxScene, properties);
     // create nodes
     std::vector<FbxNode *> fbxNodes(objects.size());
     for (size_t nodeIdx = 0; nodeIdx < objects.size(); nodeIdx++) {
         Object const &obj = objects[nodeIdx];
         FbxNode *fbxNode = FbxNode::Create(fbxScene, obj.name.c_str());
-        attachProperties(fbxNode, obj.properties);
+        AttachFbxProperties(fbxNode, obj.properties);
         fbxNode->LclTranslation.Set(ToFbx(obj.transform.GetTranslation()));
         fbxNode->LclRotation.Set(ToFbx(obj.transform.GetRotation()));
         fbxNode->LclScaling.Set(ToFbx(obj.transform.GetScaling()));
@@ -856,7 +921,7 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelOptions const &
     for (size_t texIdx = 0; texIdx < textures.size(); texIdx++) {
         Texture const &tex = textures[texIdx];
         FbxFileTexture *fbxTex = FbxFileTexture::Create(fbxScene, tex.name.c_str());
-        attachProperties(fbxTex, tex.properties);
+        AttachFbxProperties(fbxTex, tex.properties);
         fbxTex->SetFileName(tex.filename.c_str());
         fbxTextures[texIdx] = fbxTex;
         texByName[tex.name] = fbxTex;
@@ -874,7 +939,7 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelOptions const &
             fbxMat->Diffuse.ConnectSrcObject(texByName[mat.texture]);
         if (!mat.normalMap.empty() && texByName.contains(mat.normalMap))
             fbxMat->Bump.ConnectSrcObject(texByName[mat.normalMap]);
-        attachProperties(fbxMat, mat.properties);
+        AttachFbxProperties(fbxMat, mat.properties);
         fbxMaterials[matIdx] = fbxMat;
     }
     std::vector<FbxMesh *> fbxMeshes;
@@ -1052,11 +1117,10 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelOptions const &
         for (size_t boneIdx = 0; boneIdx < skeleton.bones.size(); boneIdx++) {
             const Bone &bone = skeleton.bones[boneIdx];
             FbxSkeleton *fbxSkeleton = FbxSkeleton::Create(fbxScene, bone.name.c_str());
-            attachProperties(fbxSkeleton, skeleton.properties);
             int parentIndex = getBoneIndex(bone.parent);
             fbxSkeleton->SetSkeletonType(parentIndex == -1 ? FbxSkeleton::EType::eRoot : FbxSkeleton::EType::eLimbNode);
             FbxNode *fbxNode = FbxNode::Create(fbxScene, bone.name.c_str());
-            attachProperties(fbxNode, bone.properties);
+            AttachFbxProperties(fbxNode, bone.properties);
             fbxNode->SetNodeAttribute(fbxSkeleton);
             fbxNode->LclTranslation.Set(ToFbx(bone.matrix.GetTranslation()));
             fbxNode->LclRotation.Set(ToFbx(bone.matrix.GetRotation()));

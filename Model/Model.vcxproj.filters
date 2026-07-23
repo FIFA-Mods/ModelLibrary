@@ -24,6 +24,9 @@
     <ClInclude Include="MeshOperations\MeshTristrip.h">
       <Filter>MeshOperations</Filter>
     </ClInclude>
+    <ClInclude Include="MeshOperations\MeshSkinning.h">
+      <Filter>MeshOperations</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelClass.cpp" />
@@ -48,6 +51,9 @@
       <Filter>3rdparty\NvTriStrip</Filter>
     </ClCompile>
     <ClCompile Include="MeshOperations\MeshTristrip.cpp">
+      <Filter>MeshOperations</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshOperations\MeshSkinning.cpp">
       <Filter>MeshOperations</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,9 +1,9 @@
 #pragma once
 #include "ModelTypes.h"
 
-#define MODEL_LIBRARY_VERSION "0.1"
+#define MODEL_LIBRARY_VERSION "a1"
 
-using PropertyValue = std::variant<int, float, double, std::string, Vector2, Vector3, Vector4>;
+using PropertyValue = std::variant<int, float, double, std::string, Vector2, Vector3, Vector4, Matrix4x4>;
 
 enum VertexFormat {
     V_Position = 0,
@@ -122,6 +122,8 @@ struct Bone {
 struct Skeleton {
     std::vector<Bone> bones;
     std::map<std::string, PropertyValue> properties;
+
+    int GetBoneIndex(std::string const &boneName) const;
 };
 
 struct ModelOptions {
@@ -168,6 +170,8 @@ struct Model {
     bool IsOnlyTrisAndQuads() const;
     void Triangulate();
     void LeaveTrisAndQuads();
+    void RetargetSkeleton(Skeleton const &newSkeleton);
+    //void LimitBonesPerVertex(size_t maxBonesPerVertex);
 
     Model &operator+=(Model const &other);
 };

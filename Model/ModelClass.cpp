@@ -4,6 +4,7 @@
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
 #include "MeshOperations/MeshTriangulation.h"
+#include "MeshOperations/MeshSkinning.h"
 
 namespace model_helper::model_utils {
 
@@ -272,10 +273,8 @@ void Object::SetBone(int boneIndex) {
     if (boneIndex != -1) {
         SetNumBones(vertexFormat, 1);
         for (auto &v : vertices) {
-            for (size_t i = 0; i < 8; i++) {
-                v.boneIndices[i] = boneIndex;
-                v.boneWeights[i] = 1.0f;
-            }
+            v.boneIndices[0] = boneIndex;
+            v.boneWeights[0] = 1.0f;
         }
     }
 }
@@ -317,11 +316,15 @@ void Object::LeaveTrisAndQuads() {
     for (auto &m : meshes) m.LeaveTrisAndQuads(vertices);
 }
 
-int Model::GetBoneIndex(std::string const &boneName) const {
-    auto it = std::find_if(skeleton.bones.begin(), skeleton.bones.end(), [&boneName](Bone const &bone) {
+int Skeleton::GetBoneIndex(std::string const &boneName) const {
+    auto it = std::find_if(bones.begin(), bones.end(), [&boneName](Bone const &bone) {
         return bone.name == boneName;
     });
-    return (it == skeleton.bones.end()) ? -1 : std::distance(skeleton.bones.begin(), it);
+    return (it == bones.end()) ? -1 : std::distance(bones.begin(), it);
+}
+
+int Model::GetBoneIndex(std::string const &boneName) const {
+    return skeleton.GetBoneIndex(boneName);
 }
 
 void TrimObjectName(std::string &str) {
@@ -392,6 +395,10 @@ void Model::Triangulate() {
 
 void Model::LeaveTrisAndQuads() {
     for (auto &o : objects) o.LeaveTrisAndQuads();
+}
+
+void Model::RetargetSkeleton(Skeleton const &newSkeleton) {
+    MeshSkinning::RetargetSkeleton(*this, newSkeleton);
 }
 
 bool Mesh::IsTriangulated() const {

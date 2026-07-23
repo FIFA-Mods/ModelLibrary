@@ -1,6 +1,5 @@
 #include "ModelTypes.h"
 #include "ModelTypeConversion.h"
-#include <sstream>
 
 Vector2::Vector2() { x = y = 0.0f; }
 
@@ -37,17 +36,6 @@ bool Vector2::Equal(Vector2 const &other, float epsilon) const { return std::abs
 Vector2 &Vector2::operator=(float f) { x = y = f; return *this; }
 
 Vector2 const Vector2::SymMul(Vector2 const &o) { return Vector2(x * o.x, y * o.y); }
-
-std::string Vector2::ToString() const {
-    char buf[256];
-    sprintf_s(buf, "%g %g", x, y);
-    return buf;
-}
-
-void Vector2::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    iss >> x >> y;
-}
 
 Vector2 operator+(Vector2 const &v1, Vector2 const &v2) { return Vector2(v1.x + v2.x, v1.y + v2.y); }
 
@@ -132,17 +120,6 @@ Vector3 const Vector3::SymMul(Vector3 const &o) { return Vector3(x * o.x, y * o.
 
 Vector2 Vector3::ToVector2() const { return Vector2(x, y); }
 
-std::string Vector3::ToString() const {
-    char buf[256];
-    sprintf_s(buf, "%g %g %g", x, y, z);
-    return buf;
-}
-
-void Vector3::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    iss >> x >> y >> z;
-}
-
 Vector3 operator-(Vector3 const &v) { return Vector3(-v.x, -v.y, -v.z); }
 
 Vector3 operator+(Vector3 const &v1, Vector3 const &v2) { return Vector3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z); }
@@ -161,6 +138,18 @@ Vector3 operator/(Vector3 const &v, Vector3 const &v2) { return Vector3(v.x / v2
 
 Vector3 operator^(Vector3 const &v1, Vector3 const &v2) {
     return Vector3(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
+}
+
+float Dot(const Vector3 &a, const Vector3 &b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+Vector3 Cross(const Vector3 &a, const Vector3 &b) {
+    return Vector3(
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x
+    );
 }
 
 Vector4::Vector4() { x = y = z = w = 0.0f; }
@@ -193,17 +182,6 @@ Vector3 Vector4::ToVector3() const {
     return Vector3(x, y, z);
 }
 
-std::string Vector4::ToString() const {
-    char buf[256];
-    sprintf_s(buf, "%g %g %g %g", x, y, z, w);
-    return buf;
-}
-
-void Vector4::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    iss >> x >> y >> z >> w;
-}
-
 Quaternion::Quaternion() { x = y = z = 0.0f; w = 1.0f; }
 
 Quaternion::Quaternion(float X, float Y, float Z, float W) { x = X; y = Y; z = Z; w = W; }
@@ -228,17 +206,6 @@ float &Quaternion::operator[](unsigned int i) {
     case 3: return w;
     }
     return x;
-}
-
-std::string Quaternion::ToString() const {
-    char buf[256];
-    sprintf_s(buf, "%g %g %g %g", x, y, z, w);
-    return buf;
-}
-
-void Quaternion::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    iss >> x >> y >> z >> w;
 }
 
 Matrix4x4::Matrix4x4() {
@@ -301,27 +268,6 @@ Matrix4x4 Matrix4x4::Identity() {
 
 Matrix4x4 Matrix4x4::Inversed() const {
     return FromFbx(ToFbx(*this).Inverse());
-}
-
-std::string Matrix4x4::ToString() const {
-    std::string result;
-    for (size_t r = 0; r < 4; r++) {
-        char buf[256];
-        sprintf_s(buf, "%g %g %g %g", m[r][0], m[r][1], m[r][2], m[r][3]);
-        result += buf;
-        if (r != 3)
-            result += " ";
-    }
-    return result;
-}
-
-void Matrix4x4::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    for (size_t r = 0; r < 4; ++r) {
-        for (size_t c = 0; c < 4; ++c) {
-            iss >> m[r][c];
-        }
-    }
 }
 
 Vector3 operator*(const Matrix4x4 &mat, const Vector3 &vec) {
@@ -387,17 +333,6 @@ bool RGBA::operator<(RGBA const &other) const {
 bool RGBA::IsBlack() const {
     static const float epsilon = 10e-3f;
     return std::fabs(r) < epsilon && std::fabs(g) < epsilon && std::fabs(b) < epsilon;
-}
-
-std::string RGBA::ToString() const {
-    char buf[256];
-    sprintf_s(buf, "%u %u %u %u", r, g, b, a);
-    return buf;
-}
-
-void RGBA::FromString(std::string const &str) {
-    std::istringstream iss(str);
-    iss >> r >> g >> b >> a;
 }
 
 RGBA operator+(RGBA const &v1, RGBA const &v2) { return RGBA(v1.r + v2.r, v1.g + v2.g, v1.b + v2.b, v1.a + v2.a); }
