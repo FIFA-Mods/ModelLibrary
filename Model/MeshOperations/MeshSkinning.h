@@ -38,8 +38,11 @@ struct SkeletonBoneConversion {
     // sourceBone, commands, splitType, targetBone1, splitParams1, commands1, targetBone2, ...
 };
 
+std::vector<std::pair<uint16_t, float>> GetVertexBones(Vertex const &v, uint8_t numBonesPerVertex);
 void SetVertexBones(Vertex &v, std::vector<std::pair<uint16_t, float>> newBones, bool normalize = true);
 void RetargetSkeleton(Model &model, Skeleton const &newSkeleton);
+void LimitBonesPerVertex(Object &object, uint8_t maxBonesPerVertex);
+void LimitBonesPerVertex(Model &model, uint8_t maxBonesPerVertex);
 //void ConvertSkeleton(Model &model, Skeleton const &newSkeleton, std::map<std::string, SkeletonBoneConversion> const &conversion);
 
 }

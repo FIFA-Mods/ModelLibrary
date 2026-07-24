@@ -2,6 +2,15 @@
 
 namespace MeshSkinning {
 
+std::vector<std::pair<uint16_t, float>> GetVertexBones(Vertex const &v, uint8_t numBonesPerVertex) {
+    std::vector<std::pair<uint16_t, float>> result;
+    for (uint8_t b = 0; b < numBonesPerVertex; b++) {
+        if (v.boneWeights[b] > 0.0f)
+            result.emplace_back(v.boneIndices[b], v.boneWeights[b]);
+    }
+    return result;
+}
+
 void SetVertexBones(Vertex &v, std::vector<std::pair<uint16_t, float>> newBones, bool normalize) {
     if (!newBones.empty()) {
         if (normalize) {
@@ -62,6 +71,25 @@ void RetargetSkeleton(Model &model, Skeleton const &newSkeleton) {
         SetNumBones(o.vertexFormat, numBonesPerVertex);
     }
     model.skeleton = newSkeleton;
+}
+
+void LimitBonesPerVertex(Object &object, uint8_t maxBonesPerVertex) {
+    uint8_t numBones = NumBones(object.vertexFormat);
+    if (numBones > maxBonesPerVertex) {
+        for (auto &v : object.vertices) {
+            auto bones = GetVertexBones(v, numBones);
+            if (bones.size() > maxBonesPerVertex) {
+                bones.resize(maxBonesPerVertex);
+                SetVertexBones(v, bones, true);
+            }
+        }
+        SetNumBones(object.vertexFormat, maxBonesPerVertex);
+    }
+}
+
+void LimitBonesPerVertex(Model &model, uint8_t maxBonesPerVertex) {
+    for (auto &o : model.objects)
+        LimitBonesPerVertex(o, maxBonesPerVertex);
 }
 
 }

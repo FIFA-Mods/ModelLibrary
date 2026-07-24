@@ -316,6 +316,10 @@ void Object::LeaveTrisAndQuads() {
     for (auto &m : meshes) m.LeaveTrisAndQuads(vertices);
 }
 
+void Object::LimitBonesPerVertex(uint8_t maxBonesPerVertex) {
+    MeshSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
+}
+
 int Skeleton::GetBoneIndex(std::string const &boneName) const {
     auto it = std::find_if(bones.begin(), bones.end(), [&boneName](Bone const &bone) {
         return bone.name == boneName;
@@ -399,6 +403,15 @@ void Model::LeaveTrisAndQuads() {
 
 void Model::RetargetSkeleton(Skeleton const &newSkeleton) {
     MeshSkinning::RetargetSkeleton(*this, newSkeleton);
+}
+
+void Model::MergeMeshes() {
+    for (auto &o : objects)
+        o.MergeMeshes();
+}
+
+void Model::LimitBonesPerVertex(uint8_t maxBonesPerVertex) {
+    MeshSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
 }
 
 bool Mesh::IsTriangulated() const {

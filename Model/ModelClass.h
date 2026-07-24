@@ -111,6 +111,7 @@ struct Object {
     bool IsOnlyTrisAndQuads() const;
     void Triangulate();
     void LeaveTrisAndQuads();
+    void LimitBonesPerVertex(uint8_t maxBonesPerVertex);
 };
 
 struct Bone {
@@ -171,7 +172,8 @@ struct Model {
     void Triangulate();
     void LeaveTrisAndQuads();
     void RetargetSkeleton(Skeleton const &newSkeleton);
-    //void LimitBonesPerVertex(size_t maxBonesPerVertex);
+    void MergeMeshes();
+    void LimitBonesPerVertex(uint8_t maxBonesPerVertex);
 
     Model &operator+=(Model const &other);
 };
