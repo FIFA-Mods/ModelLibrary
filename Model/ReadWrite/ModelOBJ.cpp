@@ -94,7 +94,7 @@ Vector3 TransformNormal(const Matrix4x4 &m, const Vector3 &n) {
 
 }
 
-void Model::ReadObj(std::filesystem::path const &filename, ModelOptions const &options) {
+void Model::ReadObj(std::filesystem::path const &filename, ModelReadOptions const &options) {
     using namespace obj_helper::obj_utils;
     Clear();
     std::ifstream file(filename);
@@ -373,7 +373,7 @@ void WriteOBJGeneratorVersion(std::ofstream &f, std::string const &userWriter) {
     f << "# Model Library version " MODEL_LIBRARY_VERSION "\n";
 }
 
-void Model::WriteObj(std::filesystem::path const &filename, ModelOptions const &options) {
+void Model::WriteObj(std::filesystem::path const &filename, ModelWriteOptions const &options) {
     using namespace obj_helper::obj_utils;
     std::filesystem::path mtlPath;
     std::string mtlName;

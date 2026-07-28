@@ -378,4 +378,5 @@ int main() {
     dest.objects = { head, eyes };
     dest.skeleton = source.skeleton;
     dest.WriteFbx(folder / "fc26to16.fbx");
+    dest.ToJson(folder / "fc26to16.json");
 }

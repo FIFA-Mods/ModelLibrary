@@ -5,6 +5,7 @@
 #include "ModelTypeConversion.h"
 #include "MeshOperations/MeshTriangulation.h"
 #include "MeshOperations/MeshSkinning.h"
+#include "ModelSerialization.h"
 
 namespace model_helper::model_utils {
 
@@ -51,11 +52,11 @@ Material::Material(std::string const &n, std::string const &tex, RGBA const &col
 
 Model::Model() {}
 
-Model::Model(std::filesystem::path const &fbxFileName, ModelOptions const &options) {
+Model::Model(std::filesystem::path const &fbxFileName, ModelReadOptions const &options) {
     Read(fbxFileName, options);
 }
 
-void Model::Read(std::filesystem::path const &filename, ModelOptions const &options) {
+void Model::Read(std::filesystem::path const &filename, ModelReadOptions const &options) {
     Clear();
     auto ext = ToLower(filename.extension().string());
     if (ext == ".fbx")
@@ -64,7 +65,7 @@ void Model::Read(std::filesystem::path const &filename, ModelOptions const &opti
         ReadObj(filename, options);
 }
 
-void Model::Write(std::filesystem::path const &filename, ModelOptions const &options) {
+void Model::Write(std::filesystem::path const &filename, ModelWriteOptions const &options) {
     auto ext = ToLower(filename.extension().string());
     if (ext == ".fbx")
         WriteFbx(filename, options);
@@ -98,7 +99,7 @@ void Model::Clear() {
     properties.clear();
 }
 
-void ModelPostLoadProcess(Model &model, ModelOptions const &options) {
+void ModelPostLoadProcess(Model &model, ModelReadOptions const &options) {
     if (options.MergeMeshes) {
         for (auto &o : model.objects)
             o.MergeMeshes();
@@ -331,6 +332,14 @@ int Model::GetBoneIndex(std::string const &boneName) const {
     return skeleton.GetBoneIndex(boneName);
 }
 
+int Model::GetObjectIndex(std::string const &name) const {
+    for (size_t i = 0; i < objects.size(); i++) {
+        if (objects[i].name == name)
+            return (int)i;
+    }
+    return -1;
+}
+
 void TrimObjectName(std::string &str) {
     size_t dot_pos = str.find('.');
     if (dot_pos != std::string::npos)
@@ -348,6 +357,14 @@ std::string TrimmedObjectName(std::string const &str) {
     std::string result = str;
     TrimObjectName(result);
     return result;
+}
+
+int Model::GetMaterialIndex(std::string const &name) const {
+    for (size_t i = 0; i < materials.size(); i++) {
+        if (materials[i].name == name)
+            return (int)i;
+    }
+    return -1;
 }
 
 Object const *Model::GetObjectByName(std::string const &objectName, bool trimNames) const {
@@ -412,6 +429,15 @@ void Model::MergeMeshes() {
 
 void Model::LimitBonesPerVertex(uint8_t maxBonesPerVertex) {
     MeshSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
+}
+
+void Model::ToJson(std::filesystem::path const &filename, int indent) {
+    WriteModelJson(*this, filename, indent);
+}
+
+void Model::FromJson(std::filesystem::path const &filename) {
+    Clear();
+    *this = ReadModelJson(filename);
 }
 
 bool Mesh::IsTriangulated() const {

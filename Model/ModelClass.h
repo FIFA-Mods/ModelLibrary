@@ -2,6 +2,7 @@
 #include "ModelTypes.h"
 
 #define MODEL_LIBRARY_VERSION "a1"
+#define MODEL_LAYOUT_VERSION 1
 
 using PropertyValue = std::variant<int, float, double, std::string, Vector2, Vector3, Vector4, Matrix4x4>;
 
@@ -127,19 +128,59 @@ struct Skeleton {
     int GetBoneIndex(std::string const &boneName) const;
 };
 
-struct ModelOptions {
+struct ModelReadOptions {
     //size_t VertexLimit = 0;
     //float ScaleFactor = 1.0f;
     //size_t BonesPerVertex = 0;
     //bool PreTransformVertices = false;
-    //bool GenerateNormals = false;
-    //bool GenerateTangents = false;
     //bool FlipWindingOrder = false;
     //bool FlipUVs = false;
 
-    std::string Writer;
+    enum eNormalGeneratorMethod {
+        NORMAL_GENERATOR_NOT_SET,
+        NORMAL_GENERATOR_UNIFORM_AVERAGING
+    };
+
+    enum eTangentGeneratorMethod {
+        TANGENT_GENERATOR_NOT_SET,
+        TANGENT_GENERATOR_LENGYEL,
+        TANGENT_GENERATOR_MIKKTSPACE
+    };
+
     bool AlwaysTriangulate = false;
     bool MergeMeshes = false;
+
+    struct {
+        eNormalGeneratorMethod NormalGeneratorMethod = NORMAL_GENERATOR_NOT_SET;
+        eTangentGeneratorMethod TangentGeneratorMethod = TANGENT_GENERATOR_NOT_SET;
+        float NormalsMaxSmoothingAngle = 175.0f;
+        float TangentsMaxSmoothingAngle = 45.0f;
+        bool Regenerate = false;
+        bool KeepTopology = false;
+    } NormalTangentGenerator;
+    
+    enum eFbxNormalsOption {
+        FBX_NORMALS_DO_NOTHING,
+        FBX_NORMALS_GENERATE,
+        FBX_NORMALS_REGENERATE
+    };
+
+    eFbxNormalsOption FbxNormals = FBX_NORMALS_DO_NOTHING;
+
+    enum eFbxTangentsOption {
+        FBX_TANGENTS_DO_NOTHING,
+        FBX_TANGENTS_GENERATE,
+        FBX_TANGENTS_REGENERATE
+    };
+
+    eFbxTangentsOption FbxTangents = FBX_TANGENTS_DO_NOTHING;
+
+    int TangentsUVIndex = 0;
+};
+
+struct ModelWriteOptions {
+    std::string Writer;
+    bool AlwaysTriangulate = false;
     bool FbxAscii = false;
 };
 
@@ -152,17 +193,19 @@ struct Model {
     std::map<std::string, PropertyValue> properties;
 
     Model();
-    Model(std::filesystem::path const &fileName, ModelOptions const &options = ModelOptions());
+    Model(std::filesystem::path const &fileName, ModelReadOptions const &options = ModelReadOptions());
     void Clear();
     std::string GenerateObjectName() const;
     void DumpSkeletonHierarchy(const Skeleton &skeleton);
-    void ReadFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void WriteFbx(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void ReadObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void WriteObj(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void Read(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
-    void Write(std::filesystem::path const &filename, ModelOptions const &options = ModelOptions());
+    void ReadFbx(std::filesystem::path const &filename, ModelReadOptions const &options = ModelReadOptions());
+    void WriteFbx(std::filesystem::path const &filename, ModelWriteOptions const &options = ModelWriteOptions());
+    void ReadObj(std::filesystem::path const &filename, ModelReadOptions const &options = ModelReadOptions());
+    void WriteObj(std::filesystem::path const &filename, ModelWriteOptions const &options = ModelWriteOptions());
+    void Read(std::filesystem::path const &filename, ModelReadOptions const &options = ModelReadOptions());
+    void Write(std::filesystem::path const &filename, ModelWriteOptions const &options = ModelWriteOptions());
     int GetBoneIndex(std::string const &boneName) const;
+    int GetObjectIndex (std::string const &name) const;;
+    int GetMaterialIndex(std::string const &name) const;;
     Object const *GetObjectByName(std::string const &objectName, bool trimNames = false) const;
     Object *GetObjectByName(std::string const &objectName, bool trimNames = false);
     bool IsSkeleton() const;
@@ -174,10 +217,11 @@ struct Model {
     void RetargetSkeleton(Skeleton const &newSkeleton);
     void MergeMeshes();
     void LimitBonesPerVertex(uint8_t maxBonesPerVertex);
-
+    void ToJson(std::filesystem::path const &filename, int indent = 2);
+    void FromJson(std::filesystem::path const &filename);
     Model &operator+=(Model const &other);
 };
 
 Model operator+(Model lhs, Model const &rhs);
 
-void ModelPostLoadProcess(Model &model, ModelOptions const &options);
+void ModelPostLoadProcess(Model &model, ModelReadOptions const &options);

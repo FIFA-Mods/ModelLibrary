@@ -17,6 +17,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelClass.h" />
     <ClInclude Include="ModelFbxSdkHeader.h" />
+    <ClInclude Include="ModelSerialization.h" />
     <ClInclude Include="ModelTypeConversion.h" />
     <ClInclude Include="ModelTypes.h" />
   </ItemGroup>
@@ -28,6 +29,7 @@
     <ClCompile Include="MeshOperations\MeshTriangulation.cpp" />
     <ClCompile Include="MeshOperations\MeshTristrip.cpp" />
     <ClCompile Include="ModelClass.cpp" />
+    <ClCompile Include="ModelSerialization.cpp" />
     <ClCompile Include="ModelTypeConversion.cpp" />
     <ClCompile Include="ModelTypes.cpp" />
     <ClCompile Include="ReadWrite\ModelFBX.cpp" />
@@ -73,7 +75,7 @@
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir);C:\Program Files\Autodesk\FBX\FBX SDK\2019.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);C:\Program Files\Autodesk\FBX\FBX SDK\2019.5\include;$(ProjectDir)3rdparty\json;D:\Projects\fifam\generic;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

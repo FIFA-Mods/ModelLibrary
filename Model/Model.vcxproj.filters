@@ -27,6 +27,7 @@
     <ClInclude Include="MeshOperations\MeshSkinning.h">
       <Filter>MeshOperations</Filter>
     </ClInclude>
+    <ClInclude Include="ModelSerialization.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ModelClass.cpp" />
@@ -56,6 +57,7 @@
     <ClCompile Include="MeshOperations\MeshSkinning.cpp">
       <Filter>MeshOperations</Filter>
     </ClCompile>
+    <ClCompile Include="ModelSerialization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ReadWrite">
