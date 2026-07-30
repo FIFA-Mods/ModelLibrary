@@ -24,8 +24,8 @@ std::vector<std::vector<uint32_t>> TriangulatePolygon(
         normal.z += (a.x - b.x) * (a.y + b.y);
     }
 
-    if (normal.SquareLength() < 1e-12f)
-        return {}; // degenerate / zero-area polygon: drop it
+    //if (normal.SquareLength() < 1e-12f)
+    //    return {}; // degenerate / zero-area polygon: drop it
 
     normal.NormalizeSafe();
 

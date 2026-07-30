@@ -124,6 +124,9 @@ inline std::string PluralizeCountToken(uint8_t n, char const *singular, char con
 }
 
 inline std::string VertexFormatToString(uint32_t format) {
+    if (format == 0)
+        return std::string();
+
     std::string result = "Position";
 
     if (format & V_Normal)   result += "|Normal";
@@ -336,7 +339,8 @@ void to_json(BasicJsonType &j, Object const &obj) {
     if (!obj.parent.empty()) j["parent"] = obj.parent;
     if (!IsIdentityMatrix(obj.transform)) j["transform"] = obj.transform;
 
-    j["vertexFormat"] = VertexFormatToString(obj.vertexFormat);
+    if (obj.vertexFormat != 0)
+        j["vertexFormat"] = VertexFormatToString(obj.vertexFormat);
 
     if (!obj.vertices.empty()) {
         auto vertsJson = BasicJsonType::array();
