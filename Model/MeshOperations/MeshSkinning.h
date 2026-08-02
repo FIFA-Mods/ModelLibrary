@@ -45,4 +45,11 @@ void LimitBonesPerVertex(Object &object, uint8_t maxBonesPerVertex);
 void LimitBonesPerVertex(Model &model, uint8_t maxBonesPerVertex);
 //void ConvertSkeleton(Model &model, Skeleton const &newSkeleton, std::map<std::string, SkeletonBoneConversion> const &conversion);
 
+std::vector<Matrix4x4> ComputeGlobalTransforms(const Skeleton& skel);
+std::unordered_map<std::string, Matrix4x4> ComputeBoneDiffMatrices(const Skeleton& poseFrom, const Skeleton& poseTo);
+Matrix4x4 BlendMatrices(const std::vector<std::pair<Matrix4x4, float>>& weighted);
+void ApplyBoneDiffToObject(Object& obj, const Skeleton& modelSkeleton, const std::unordered_map<std::string, Matrix4x4>& boneDiffsByName);
+void ChangePose(Model& model, const std::unordered_map<std::string, Matrix4x4>& boneDiffs);
+void ChangePose(Model& model, const Skeleton& poseFrom, const Skeleton& poseTo);
+
 }
