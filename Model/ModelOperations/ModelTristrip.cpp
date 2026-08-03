@@ -1,4 +1,4 @@
-#include "MeshTristrip.h"
+#include "ModelTristrip.h"
 #include "3rdparty/NvTriStrip/NvTriStrip.h"
 
 namespace {
@@ -27,7 +27,7 @@ static void AppendTriangleToStrip(std::vector<uint16_t> &strip, uint16_t a, uint
 
 }
 
-namespace MeshTristrip {
+namespace ModelTristrip {
 
 std::vector<uint16_t> GenerateTristrips(const std::vector<std::vector<uint32_t>> &polygons) {
     SetListsOnly(false);

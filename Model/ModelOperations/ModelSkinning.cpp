@@ -1,6 +1,6 @@
-#include "MeshSkinning.h"
+#include "ModelSkinning.h"
 
-namespace MeshSkinning {
+namespace ModelSkinning {
 
 std::vector<std::pair<uint16_t, float>> GetVertexBones(Vertex const &v, uint8_t numBonesPerVertex) {
     std::vector<std::pair<uint16_t, float>> result;
@@ -65,7 +65,7 @@ void RetargetSkeleton(Model &model, Skeleton const &newSkeleton) {
                     }
                 }
             }
-            MeshSkinning::SetVertexBones(v, newBones, true);
+            SetVertexBones(v, newBones, true);
             numBonesPerVertex = std::max(static_cast<uint8_t>(newBones.size()), numBonesPerVertex);
         }
         SetNumBones(o.vertexFormat, numBonesPerVertex);
@@ -179,7 +179,7 @@ void ApplyBoneDiffToObject(Object &obj, const Skeleton &modelSkeleton, const std
     }
 
     for (Vertex &v : obj.vertices) {
-        auto bones = MeshSkinning::GetVertexBones(v, NumBones(obj.vertexFormat));
+        auto bones = GetVertexBones(v, NumBones(obj.vertexFormat));
         if (bones.empty()) continue;
 
         std::vector<std::pair<Matrix4x4, float>> weighted;
@@ -196,9 +196,12 @@ void ApplyBoneDiffToObject(Object &obj, const Skeleton &modelSkeleton, const std
 
         Matrix4x4 rotOnly = blended;
         rotOnly.SetTranslation(Vector3(0.0f, 0.0f, 0.0f));
-        v.normal = Normalize(rotOnly * v.normal);
-        v.tangent = Normalize(rotOnly * v.tangent);
-        v.binormal = Normalize(rotOnly * v.binormal);
+        if (obj.vertexFormat & V_Normal)
+            v.normal = Normalize(rotOnly * v.normal);
+        if (obj.vertexFormat & V_Tangent)
+            v.tangent = Normalize(rotOnly * v.tangent);
+        if (obj.vertexFormat & V_Binormal)
+            v.binormal = Normalize(rotOnly * v.binormal);
     }
 }
 

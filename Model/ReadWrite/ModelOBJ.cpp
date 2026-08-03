@@ -2,7 +2,7 @@
 #include <fstream>
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
-#include "MeshOperations/MeshTriangulation.h"
+#include "ModelOperations/ModelTriangulation.h"
 
 namespace obj_helper::obj_utils {
 
@@ -442,7 +442,7 @@ void Model::WriteObj(std::filesystem::path const &filename, ModelWriteOptions co
             std::vector<std::vector<uint32_t>> triangulatedStorage;
             const std::vector<std::vector<uint32_t>> *polysToWrite = &mesh.polygons;
             if (options.AlwaysTriangulate && !mesh.IsTriangulated()) {
-                triangulatedStorage = MeshTriangulation::Triangulate(mesh.polygons, obj.vertices);
+                triangulatedStorage = ModelTriangulation::Triangulate(mesh.polygons, obj.vertices);
                 polysToWrite = &triangulatedStorage;
             }
             if (writeMaterials) {

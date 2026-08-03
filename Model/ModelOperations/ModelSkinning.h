@@ -1,7 +1,7 @@
 #pragma once
 #include "ModelClass.h"
 
-namespace MeshSkinning {
+namespace ModelSkinning {
 
 enum eSkeletonBoneSplitType {
     SKELETON_BONE_SPLIT_SIMPLE,

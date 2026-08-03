@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-namespace MeshTristrip {
+namespace ModelTristrip {
 
 // Generates a single tristrip index array from triangles.
 // It's expected that all polygons are triangles (non-triangle entries are skipped).

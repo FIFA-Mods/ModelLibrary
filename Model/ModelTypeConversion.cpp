@@ -23,11 +23,18 @@ FbxAMatrix ToFbx(Matrix4x4 const &mat) {
     return result;
 }
 
+inline float SnapEpsilon(double value, double epsilon = 1e-6) {
+    if (std::fabs(value) < epsilon) return 0.0f;
+    if (std::fabs(value - 1.0) < epsilon) return 1.0f;
+    if (std::fabs(value + 1.0) < epsilon) return -1.0f;
+    return static_cast<float>(value);
+}
+
 Matrix4x4 FromFbx(FbxAMatrix const &mat) {
     Matrix4x4 result;
     for (unsigned int i = 0; i < 4; i++) {
         for (unsigned int j = 0; j < 4; j++)
-            result.m[i][j] = static_cast<float>(mat.mData[i][j]);
+            result.m[i][j] = SnapEpsilon(mat.mData[i][j]);
     }
     return result;
 }

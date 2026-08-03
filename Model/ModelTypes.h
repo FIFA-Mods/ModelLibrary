@@ -99,6 +99,7 @@ struct Matrix4x4 {
 
     Matrix4x4();
     void SetIdentity();
+    bool IsIdentity(float epsilon = 1e-6f) const;
     Vector3 GetTranslation() const;
     void SetTranslation(Vector3 const &t);
     Vector3 GetScaling() const;

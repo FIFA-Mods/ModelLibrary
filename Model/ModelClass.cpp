@@ -3,8 +3,9 @@
 #include <fstream>
 #include "ModelFbxSdkHeader.h"
 #include "ModelTypeConversion.h"
-#include "MeshOperations/MeshTriangulation.h"
-#include "MeshOperations/MeshSkinning.h"
+#include "ModelOperations/ModelTriangulation.h"
+#include "ModelOperations/ModelSkinning.h"
+#include "ModelOperations/ModelTransform.h"
 #include "ModelSerialization.h"
 
 namespace model_helper::model_utils {
@@ -104,6 +105,8 @@ void ModelPostLoadProcess(Model &model, ModelReadOptions const &options) {
         for (auto &o : model.objects)
             o.MergeMeshes();
     }
+    if (options.ApplyTransforms)
+        model.ApplyTransforms(true);
 }
 
 void Model::DumpSkeletonHierarchy(const Skeleton &skeleton) {
@@ -318,7 +321,7 @@ void Object::LeaveTrisAndQuads() {
 }
 
 void Object::LimitBonesPerVertex(uint8_t maxBonesPerVertex) {
-    MeshSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
+    ModelSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
 }
 
 int Skeleton::GetBoneIndex(std::string const &boneName) const {
@@ -419,7 +422,7 @@ void Model::LeaveTrisAndQuads() {
 }
 
 void Model::RetargetSkeleton(Skeleton const &newSkeleton) {
-    MeshSkinning::RetargetSkeleton(*this, newSkeleton);
+    ModelSkinning::RetargetSkeleton(*this, newSkeleton);
 }
 
 void Model::MergeMeshes() {
@@ -428,7 +431,11 @@ void Model::MergeMeshes() {
 }
 
 void Model::LimitBonesPerVertex(uint8_t maxBonesPerVertex) {
-    MeshSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
+    ModelSkinning::LimitBonesPerVertex(*this, maxBonesPerVertex);
+}
+
+void Model::ApplyTransforms(bool applySkeletonTransforms) {
+    ModelTransform::ApplyModelTransforms(*this, applySkeletonTransforms);
 }
 
 void Model::ToJson(std::filesystem::path const &filename, int indent) {
@@ -452,10 +459,10 @@ bool Mesh::IsOnlyTrisAndQuads() const {
 
 void Mesh::Triangulate(const std::vector<Vertex> &vertices) {
     if (IsTriangulated()) return;
-    polygons = MeshTriangulation::Triangulate(polygons, vertices);
+    polygons = ModelTriangulation::Triangulate(polygons, vertices);
 }
 
 void Mesh::LeaveTrisAndQuads(const std::vector<Vertex> &vertices) {
     if (IsOnlyTrisAndQuads()) return;
-    polygons = MeshTriangulation::LeaveTrisAndQuads(polygons, vertices);
+    polygons = ModelTriangulation::LeaveTrisAndQuads(polygons, vertices);
 }

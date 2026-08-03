@@ -220,6 +220,16 @@ void Matrix4x4::SetIdentity() {
     }
 }
 
+bool Matrix4x4::IsIdentity(float epsilon) const {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            float expected = (i == j) ? 1.0f : 0.0f;
+            if (std::fabs(m[i][j] - expected) > epsilon) return false;
+        }
+    }
+    return true;
+}
+
 Vector3 Matrix4x4::GetTranslation() const {
     return FromFbx(ToFbx(*this).GetT()).ToVector3();
 }

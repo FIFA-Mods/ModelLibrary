@@ -1,4 +1,4 @@
-#include "MeshTriangulation.h"
+#include "ModelTriangulation.h"
 #include <3rdparty/mapbox/earcut.hpp>
 #include <array>
 #include <cmath>
@@ -51,7 +51,7 @@ std::vector<std::vector<uint32_t>> TriangulatePolygon(
 
 } // namespace
 
-namespace MeshTriangulation {
+namespace ModelTriangulation {
 
 std::vector<std::vector<uint32_t>> Triangulate(
     const std::vector<std::vector<uint32_t>> &polygons,

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "ModelClass.h"
 
-namespace MeshTriangulation {
+namespace ModelTriangulation {
 
 std::vector<std::vector<uint32_t>> Triangulate(
     const std::vector<std::vector<uint32_t>> &polygons,

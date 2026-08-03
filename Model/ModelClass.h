@@ -149,6 +149,7 @@ struct ModelReadOptions {
 
     bool AlwaysTriangulate = false;
     bool MergeMeshes = false;
+    bool ApplyTransforms = false;
 
     struct {
         eNormalGeneratorMethod NormalGeneratorMethod = NORMAL_GENERATOR_NOT_SET;
@@ -217,6 +218,7 @@ struct Model {
     void RetargetSkeleton(Skeleton const &newSkeleton);
     void MergeMeshes();
     void LimitBonesPerVertex(uint8_t maxBonesPerVertex);
+    void ApplyTransforms(bool applySkeletonTransforms = true);
     void ToJson(std::filesystem::path const &filename, int indent = 2);
     void FromJson(std::filesystem::path const &filename);
     Model &operator+=(Model const &other);
