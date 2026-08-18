@@ -19,6 +19,23 @@ Matrix4x4 NormalMatrix(Matrix4x4 const &mat) {
     return Transpose3x3(mat.Inversed());
 }
 
+std::vector<size_t> DirectChildren(std::vector<Bone> const &bones, std::string const &parentName) {
+    std::vector<size_t> result;
+    for (size_t i = 0; i < bones.size(); ++i)
+        if (bones[i].parent == parentName) result.push_back(i);
+    return result;
+}
+
+void CollectSubtree(std::vector<Bone> const &bones, std::string const &parentName,
+    std::vector<size_t> &out) {
+    for (size_t i = 0; i < bones.size(); ++i) {
+        if (bones[i].parent == parentName) {
+            out.push_back(i);
+            CollectSubtree(bones, bones[i].name, out);
+        }
+    }
+}
+
 }
 
 namespace ModelTransform {
@@ -77,16 +94,23 @@ void ApplyModelTransforms(Model &model, bool applySkeletonTransforms) {
         for (size_t i = 0; i < bones.size(); ++i)
             bonesByName[bones[i].name] = i;
         for (size_t i = 0; i < bones.size(); ++i) {
-            Bone &bone = bones[i];
-            bool isRoot = bone.parent.empty() || bonesByName.find(bone.parent) == bonesByName.end();
-            if (!isRoot || bone.matrix.IsIdentity())
+            Bone &root = bones[i];
+            bool isRoot = root.parent.empty() || bonesByName.find(root.parent) == bonesByName.end();
+            if (!isRoot || root.matrix.IsIdentity())
                 continue;
-            Matrix4x4 const rootMatrix = bone.matrix;
-            for (Bone &child : bones) {
-                if (child.parent == bone.name)
-                    child.matrix = rootMatrix * child.matrix;
+            Vector3 const s0 = root.matrix.GetScaling();
+            Matrix4x4 r0 = root.matrix;
+            r0.SetScaling(Vector3(1.0f, 1.0f, 1.0f));
+            root.matrix = Matrix4x4::Identity();
+            std::vector<size_t> directChildren = DirectChildren(bones, root.name);
+            for (size_t childIdx : directChildren)
+                bones[childIdx].matrix = r0 * bones[childIdx].matrix;
+            std::vector<size_t> subtree;
+            CollectSubtree(bones, root.name, subtree);
+            for (size_t idx : subtree) {
+                Vector3 const t = bones[idx].matrix.GetTranslation();
+                bones[idx].matrix.SetTranslation(Vector3(t.x * s0.x, t.y * s0.y, t.z * s0.z));
             }
-            bone.matrix = Matrix4x4::Identity();
         }
     }
 }

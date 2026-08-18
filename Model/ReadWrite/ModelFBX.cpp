@@ -6,6 +6,22 @@
 
 namespace fbx_helper::fbx_utils {
 
+std::string FbxToUTF8(wchar_t const *str) {
+    char *pUtf8 = nullptr;
+    FbxWCToUTF8(str, pUtf8);
+    std::string result = pUtf8;
+    FbxFree(pUtf8);
+    return result;
+}
+
+std::string FbxToUTF8(std::wstring const &str) {
+    return FbxToUTF8(str.c_str());
+}
+
+std::string FbxToUTF8(std::filesystem::path const &p) {
+    return FbxToUTF8(p.c_str());
+}
+
 std::map<std::string, PropertyValue> ExtractFbxProperties(FbxObject *obj) {
     std::map<std::string, PropertyValue> props;
     for (FbxProperty prop = obj->GetFirstProperty(); prop.IsValid(); prop = obj->GetNextProperty(prop)) {
@@ -661,8 +677,7 @@ void GetFbxGeometryInfo(FbxNode *node, FbxGeometryInfo &info) {
 }
 
 void GenerateNormalsAndTangents(FbxNode *node, ModelReadOptions::eFbxNormalsOption normals,
-    ModelReadOptions::eFbxTangentsOption tangents, int UVIndex)
-{
+    ModelReadOptions::eFbxTangentsOption tangents, int UVIndex) {
     if (!node)
         return;
     for (int attrIndex = 0; attrIndex < node->GetNodeAttributeCount(); ++attrIndex) {
@@ -740,8 +755,7 @@ void Model::ReadFbx(std::filesystem::path const &filename, ModelReadOptions cons
             fbxTangents = ModelReadOptions::FBX_TANGENTS_DO_NOTHING;
         // Edge case: tangent generation requires normals to exist first
         if (fbxTangents != ModelReadOptions::FBX_TANGENTS_DO_NOTHING && fbxNormals == ModelReadOptions::FBX_NORMALS_DO_NOTHING
-            && geomInfo.bHasMeshesWithoutNormals)
-        {
+            && geomInfo.bHasMeshesWithoutNormals) {
             fbxNormals = ModelReadOptions::FBX_NORMALS_GENERATE;
         }
         // Edge case: tangent generation requires a triangulated mesh
@@ -1035,13 +1049,15 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
     }
     bool isSkinned = !skeleton.bones.empty();
     // create textures
+    std::filesystem::path texturesFolder = (filename.has_parent_path() ? filename.parent_path() : std::filesystem::current_path()) / "";
     std::map<std::string, FbxFileTexture *> texByName;
     std::vector<FbxFileTexture *> fbxTextures(textures.size());
     for (size_t texIdx = 0; texIdx < textures.size(); texIdx++) {
         Texture const &tex = textures[texIdx];
         FbxFileTexture *fbxTex = FbxFileTexture::Create(fbxScene, tex.name.c_str());
         AttachFbxProperties(fbxTex, tex.properties);
-        fbxTex->SetFileName(tex.filename.c_str());
+        fbxTex->SetFileName((FbxToUTF8(texturesFolder) + tex.filename).c_str());
+        fbxTex->SetRelativeFileName(tex.filename.c_str());
         fbxTextures[texIdx] = fbxTex;
         texByName[tex.name] = fbxTex;
     }
@@ -1130,12 +1146,26 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                 layer->SetVertexColors(leVC);
                 colorLayers.push_back(leVC);
             }
-            FbxLayerElementMaterial *leMat = fbxMesh->CreateElementMaterial();
-            leMat->SetMappingMode(FbxLayerElement::eByPolygon);
-            leMat->SetReferenceMode(FbxLayerElement::eIndexToDirect);
             std::map<int, int> globalToLocal;
             int nextLocalIdx = 0;
-            for (auto const &mesh : obj.meshes) {
+            std::vector<int> meshLocalIdx(obj.meshes.size(), -1);
+            for (size_t m = 0; m < obj.meshes.size(); ++m) {
+                auto const &mesh = obj.meshes[m];
+                if (mesh.material.empty())
+                    continue;
+                int matIdx = GetMaterialIndex(mesh.material);
+                if (matIdx == -1)
+                    continue;
+                auto [it, inserted] = globalToLocal.emplace(matIdx, nextLocalIdx);
+                if (inserted) {
+                    fbxNodes[nodeIdx]->AddMaterial(fbxMaterials[matIdx]);
+                    ++nextLocalIdx;
+                }
+                meshLocalIdx[m] = it->second;
+            }
+            for (size_t m = 0; m < obj.meshes.size(); ++m) {
+                auto const &mesh = obj.meshes[m];
+                int localIdx = meshLocalIdx[m] != -1 ? meshLocalIdx[m] : 0;
                 std::vector<std::vector<uint32_t>> triangulatedStorage;
                 const std::vector<std::vector<uint32_t>> *polysToWrite = &mesh.polygons;
                 if (options.AlwaysTriangulate && !mesh.IsTriangulated()) {
@@ -1143,7 +1173,7 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                     polysToWrite = &triangulatedStorage;
                 }
                 for (size_t p = 0; p < polysToWrite->size(); ++p) {
-                    fbxMesh->BeginPolygon(-1, -1, false);
+                    fbxMesh->BeginPolygon(localIdx, -1, -1, false);
                     for (size_t c = 0; c < polysToWrite->at(p).size(); c++)
                         fbxMesh->AddPolygon((int)polysToWrite->at(p)[c]);
                     fbxMesh->EndPolygon();
@@ -1161,20 +1191,6 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                             colorLayers[cIdx]->GetIndexArray().Add(vIdx);
                     }
                 }
-                int localIdx = 0;
-                if (!mesh.material.empty()) {
-                    int matIdx = GetMaterialIndex(mesh.material);
-                    if (matIdx != -1) {
-                        auto [it, inserted] = globalToLocal.emplace(matIdx, nextLocalIdx);
-                        if (inserted) {
-                            fbxNodes[nodeIdx]->AddMaterial(fbxMaterials[matIdx]);
-                            ++nextLocalIdx;
-                        }
-                        localIdx = it->second;
-                    }
-                }
-                for (size_t p = 0; p < polysToWrite->size(); ++p)
-                    leMat->GetIndexArray().Add(localIdx);
             }
             if (!uvLayers.empty()) {
                 FbxLayer *layer = fbxMesh->GetLayer(0);
@@ -1289,9 +1305,6 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
         }
     }
     // export
-    FbxExporter *fbxExporter = FbxExporter::Create(fbxManager, "");
-    char *pFilenameUtf8 = nullptr;
-    FbxWCToUTF8(filename.c_str(), pFilenameUtf8);
     int fileFormat = -1;
     if (options.FbxAscii) {
         int numFormats = fbxManager->GetIOPluginRegistry()->GetWriterFormatCount();
@@ -1305,8 +1318,8 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
             }
         }
     }
-    bool exportStatus = fbxExporter->Initialize(pFilenameUtf8, fileFormat, fbxManager->GetIOSettings());
-    FbxFree(pFilenameUtf8);
+    FbxExporter *fbxExporter = FbxExporter::Create(fbxManager, "");
+    bool exportStatus = fbxExporter->Initialize(FbxToUTF8(filename).c_str(), fileFormat, fbxManager->GetIOSettings());
     if (exportStatus)
         fbxExporter->Export(fbxScene);
     fbxExporter->Destroy();
