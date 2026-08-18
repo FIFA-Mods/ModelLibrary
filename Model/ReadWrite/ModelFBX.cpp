@@ -1146,6 +1146,9 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                 layer->SetVertexColors(leVC);
                 colorLayers.push_back(leVC);
             }
+            FbxLayerElementMaterial *leMat = fbxMesh->CreateElementMaterial();
+            leMat->SetMappingMode(FbxLayerElement::eByPolygon);
+            leMat->SetReferenceMode(FbxLayerElement::eIndexToDirect);
             std::map<int, int> globalToLocal;
             int nextLocalIdx = 0;
             std::vector<int> meshLocalIdx(obj.meshes.size(), -1);
@@ -1173,10 +1176,11 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                     polysToWrite = &triangulatedStorage;
                 }
                 for (size_t p = 0; p < polysToWrite->size(); ++p) {
-                    fbxMesh->BeginPolygon(localIdx, -1, -1, false);
+                    fbxMesh->BeginPolygon(-1, -1, -1, false);
                     for (size_t c = 0; c < polysToWrite->at(p).size(); c++)
                         fbxMesh->AddPolygon((int)polysToWrite->at(p)[c]);
                     fbxMesh->EndPolygon();
+                    leMat->GetIndexArray().Add(localIdx);
                     for (size_t c = 0; c < polysToWrite->at(p).size(); c++) {
                         int vIdx = polysToWrite->at(p)[c];
                         if (leNormal)
