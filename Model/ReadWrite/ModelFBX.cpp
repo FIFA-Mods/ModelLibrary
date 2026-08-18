@@ -1152,6 +1152,8 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
             std::map<int, int> globalToLocal;
             int nextLocalIdx = 0;
             std::vector<int> meshLocalIdx(obj.meshes.size(), -1);
+            std::vector<size_t> meshPolyCounts;
+            std::vector<int> meshMaterialForRange;
             for (size_t m = 0; m < obj.meshes.size(); ++m) {
                 auto const &mesh = obj.meshes[m];
                 if (mesh.material.empty())
@@ -1180,7 +1182,6 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                     for (size_t c = 0; c < polysToWrite->at(p).size(); c++)
                         fbxMesh->AddPolygon((int)polysToWrite->at(p)[c]);
                     fbxMesh->EndPolygon();
-                    leMat->GetIndexArray().Add(localIdx);
                     for (size_t c = 0; c < polysToWrite->at(p).size(); c++) {
                         int vIdx = polysToWrite->at(p)[c];
                         if (leNormal)
@@ -1194,6 +1195,18 @@ void Model::WriteFbx(std::filesystem::path const &filename, ModelWriteOptions co
                         for (unsigned int cIdx = 0; cIdx < colorLayers.size(); ++cIdx)
                             colorLayers[cIdx]->GetIndexArray().Add(vIdx);
                     }
+                }
+                meshPolyCounts.push_back(polysToWrite->size());
+                meshMaterialForRange.push_back(localIdx);
+            }
+            {
+                int totalPolys = 0;
+                for (size_t n : meshPolyCounts) totalPolys += (int)n;
+                leMat->GetIndexArray().SetCount(totalPolys);
+                int pos = 0;
+                for (size_t m = 0; m < meshPolyCounts.size(); ++m) {
+                    for (size_t p = 0; p < meshPolyCounts[m]; ++p, ++pos)
+                        leMat->GetIndexArray().SetAt(pos, meshMaterialForRange[m]);
                 }
             }
             if (!uvLayers.empty()) {
